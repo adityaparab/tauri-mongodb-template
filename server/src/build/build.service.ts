@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Observable } from 'rxjs';
@@ -53,9 +54,10 @@ export class BuildService {
   constructor(
     @InjectModel(BuildRecord.name)
     private readonly buildRecordModel: Model<BuildRecordDocument>,
+    config: ConfigService,
   ) {
     this.buildOutputBase =
-      process.env.BUILD_OUTPUT_DIR ?? path.join(this.projectRoot, 'builds');
+      config.get<string>('BUILD_OUTPUT_DIR') ?? path.join(this.projectRoot, 'builds');
   }
 
   // ---------------------------------------------------------------------------
