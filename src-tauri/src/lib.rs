@@ -352,6 +352,12 @@ pub fn run() {
             list_collections,
             list_documents
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::Exit = event {
+                let state = app_handle.state::<MongoState>();
+                stop_owned_mongodb(&state);
+            }
+        });
 }

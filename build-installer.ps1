@@ -28,7 +28,7 @@ $ErrorActionPreference = 'Stop'
 
 # Use IO.Path.Combine so paths work correctly on both Windows and Linux (pwsh).
 $hooksFile     = [IO.Path]::Combine($PSScriptRoot, "src-tauri", "installer-hooks.nsh")
-$definePattern = '(!define LICENSED_MACHINE_UUID ")[^"]*(")'
+$definePattern = '(?m)^(\s*!define LICENSED_MACHINE_UUID\s+")[^"]*(")'
 $utf8NoBom     = New-Object System.Text.UTF8Encoding $false
 
 function Set-LicensedUUID {
@@ -49,7 +49,10 @@ try {
     # --- Build ---------------------------------------------------------------
     # On Linux/macOS we cross-compile for the Windows x64 GNU target; Wine is
     # used by Tauri to run the NSIS tools that create the .exe installer.
-    if ($IsLinux -or $IsMacOS) {
+    $isLinux = [bool](Get-Variable -Name IsLinux -ValueOnly -ErrorAction SilentlyContinue)
+    $isMacOS = [bool](Get-Variable -Name IsMacOS -ValueOnly -ErrorAction SilentlyContinue)
+
+    if ($isLinux -or $isMacOS) {
         Write-Host "Running: yarn tauri build --target x86_64-pc-windows-gnu --bundles nsis"
         yarn tauri build --target x86_64-pc-windows-gnu --bundles nsis
         $bundleDir = [IO.Path]::Combine(
@@ -80,7 +83,7 @@ try {
         Write-Host "Build successful."
         Write-Host "Installer : $dest"
     } else {
-        Write-Warning "Build succeeded but no *_x64-setup.exe was found in $bundleDir"
+        throw "Build succeeded but no *_x64-setup.exe was found in $bundleDir"
     }
 } finally {
     # --- Restore -------------------------------------------------------------

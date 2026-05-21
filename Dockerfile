@@ -83,6 +83,13 @@ WORKDIR /app
 COPY . .
 RUN yarn install --frozen-lockfile
 
+# ── 6a. Build the React admin UI served by Nest at runtime ───────────────────
+WORKDIR /app/client
+RUN yarn install --frozen-lockfile
+RUN yarn build
+
+WORKDIR /app
+
 # ── 7. Pre-warm the Rust / Tauri build cache ─────────────────────────────────
 # Running a full build here compiles all Rust crates and bundles the frontend.
 # Subsequent /generate/:uuid requests hit the incremental Cargo cache and only
