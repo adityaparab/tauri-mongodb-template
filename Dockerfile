@@ -23,6 +23,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 ENV PATH=/usr/local/cargo/bin:$PATH
 
+# ── 0. Make apt resilient to transient mirror failures ────────────────────────
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
+
 # ── 1. System packages ────────────────────────────────────────────────────────
 RUN dpkg --add-architecture i386 \
  && apt-get update \
