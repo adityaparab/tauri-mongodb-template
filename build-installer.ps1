@@ -49,10 +49,10 @@ try {
     # --- Build ---------------------------------------------------------------
     # On Linux/macOS we cross-compile for the Windows x64 GNU target; Wine is
     # used by Tauri to run the NSIS tools that create the .exe installer.
-    $isLinux = [bool](Get-Variable -Name IsLinux -ValueOnly -ErrorAction SilentlyContinue)
-    $isMacOS = [bool](Get-Variable -Name IsMacOS -ValueOnly -ErrorAction SilentlyContinue)
+    $onLinux = [bool](Get-Variable -Name IsLinux -ValueOnly -ErrorAction SilentlyContinue)
+    $onMacOS = [bool](Get-Variable -Name IsMacOS -ValueOnly -ErrorAction SilentlyContinue)
 
-    if ($isLinux -or $isMacOS) {
+    if ($onLinux -or $onMacOS) {
         Write-Host "Running: yarn tauri build --target x86_64-pc-windows-gnu --bundles nsis"
         yarn tauri build --target x86_64-pc-windows-gnu --bundles nsis
         $bundleDir = [IO.Path]::Combine(
