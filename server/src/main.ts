@@ -1,11 +1,45 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as express from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
 import { AppModule } from './app.module';
 
+const API_ROUTE_PREFIXES = ['/api', '/auth', '/builds', '/download', '/generate', '/health'];
+
+function isApiRoute(requestPath: string): boolean {
+  return API_ROUTE_PREFIXES.some(
+    (prefix) => requestPath === prefix || requestPath.startsWith(`${prefix}/`),
+  );
+}
+
+function serveClientApp(app: NestExpressApplication): void {
+  const clientDistPath = path.resolve(__dirname, '../../client/dist');
+  const indexPath = path.join(clientDistPath, 'index.html');
+
+  if (!fs.existsSync(indexPath)) {
+    console.warn(
+      `Client app was not served because ${indexPath} does not exist. Run the client build first.`,
+    );
+    return;
+  }
+
+  const server = app.getHttpAdapter().getInstance();
+  server.use(express.static(clientDistPath));
+  server.get('*', (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (isApiRoute(req.path)) {
+      next();
+      return;
+    }
+    res.sendFile(indexPath);
+  });
+}
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // ---------------------------------------------------------------------------
   // Global validation — strips unknown fields and coerces types automatically.
@@ -51,6 +85,8 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);
+
+  serveClientApp(app);
 
   const config = app.get(ConfigService);
   const port = config.get<number>('PORT', 3000);

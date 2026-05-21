@@ -16,6 +16,16 @@ import {
   BuildStatus,
 } from './schemas/build-record.schema';
 
+export interface BuildRecordSummary {
+  id: string;
+  uuid: string;
+  status: BuildStatus;
+  outputFilename: string | null;
+  createdAt: Date | null;
+  completedAt: Date | null;
+  canDownload: boolean;
+}
+
 /**
  * Core build orchestration service.
  *
@@ -108,8 +118,8 @@ export class BuildService {
       const scriptPath = path.join(this.projectRoot, 'build-installer.ps1');
 
       const proc = spawn(
-        'pwsh',
-        ['-NonInteractive', '-NoProfile', '-File', scriptPath, '-UUID', uuid],
+        this.getPowerShellCommand(),
+        this.getPowerShellArgs(scriptPath, uuid),
         { cwd: this.projectRoot },
       );
 
@@ -141,6 +151,9 @@ export class BuildService {
           const destPath = path.join(destDir, outputFilename);
 
           try {
+            if (!fs.existsSync(sourcePath)) {
+              throw new Error(`Expected installer was not found at ${sourcePath}`);
+            }
             fs.mkdirSync(destDir, { recursive: true });
             fs.copyFileSync(sourcePath, destPath);
           } catch (copyErr) {
@@ -240,6 +253,26 @@ export class BuildService {
       .exec();
   }
 
+  /** Returns build records owned by the authenticated user, newest first. */
+  async listBuildsForUser(userId: string): Promise<BuildRecordSummary[]> {
+    const records = await this.buildRecordModel
+      .find({ userId: new Types.ObjectId(userId) })
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+
+    return records.map((record) => ({
+      id: record._id.toString(),
+      uuid: record.uuid,
+      status: record.status,
+      outputFilename: record.outputFilename,
+      createdAt: record.createdAt ?? null,
+      completedAt: record.completedAt ?? null,
+      canDownload:
+        record.status === BuildStatus.COMPLETED && Boolean(record.outputFilename),
+    }));
+  }
+
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
@@ -275,5 +308,19 @@ export class BuildService {
       'nsis',
       filename,
     );
+  }
+
+  private getPowerShellCommand(): string {
+    return process.platform === 'win32' ? 'powershell.exe' : 'pwsh';
+  }
+
+  private getPowerShellArgs(scriptPath: string, uuid: string): string[] {
+    const args = ['-NonInteractive', '-NoProfile'];
+
+    if (process.platform === 'win32') {
+      args.push('-ExecutionPolicy', 'Bypass');
+    }
+
+    return [...args, '-File', scriptPath, '-UUID', uuid];
   }
 }

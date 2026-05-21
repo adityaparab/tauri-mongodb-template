@@ -38,6 +38,45 @@ export class BuildController {
   constructor(private readonly buildService: BuildService) {}
 
   /**
+   * Lists build records owned by the authenticated user.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('builds')
+  @ApiOperation({
+    summary: 'List build records for the authenticated user',
+    description:
+      'Returns the current user\'s submitted UUIDs and build statuses, newest first. ' +
+      'The response includes a canDownload flag for completed artifacts without exposing server file paths.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Build records owned by the authenticated user.',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', example: '665f4e3e5f6a5e4d8c3b2a10' },
+          uuid: { type: 'string', example: '4C4C4544-0046-4210-8031-CAC04F575931' },
+          status: { type: 'string', enum: ['building', 'completed', 'failed'] },
+          outputFilename: {
+            type: 'string',
+            nullable: true,
+            example: 'inventory_4C4C4544-0046-4210-8031-CAC04F575931_setup.exe',
+          },
+          createdAt: { type: 'string', nullable: true, format: 'date-time' },
+          completedAt: { type: 'string', nullable: true, format: 'date-time' },
+          canDownload: { type: 'boolean', example: true },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized — missing or invalid JWT Bearer token.' })
+  async listBuilds(@Request() req: { user: AuthenticatedUser }) {
+    return this.buildService.listBuildsForUser(req.user.userId);
+  }
+
+  /**
    * Stream a machine-specific NSIS installer build via Server-Sent Events.
    *
    * Opens a persistent SSE connection and forwards real-time output from the

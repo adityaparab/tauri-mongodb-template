@@ -67,6 +67,9 @@ export class BuildRecord {
   /** Timestamp at which the build finished (success or failure). */
   @Prop({ default: null })
   completedAt: Date | null;
+
+  /** Timestamp added by the schema's timestamps option when the record is created. */
+  createdAt?: Date;
 }
 
 export const BuildRecordSchema = SchemaFactory.createForClass(BuildRecord);
