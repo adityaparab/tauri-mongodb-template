@@ -33,13 +33,19 @@ RUN dpkg --add-architecture i386 \
     # MinGW cross-compilation toolchain  (Linux → Windows x64)
     gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 \
     binutils-mingw-w64-x86-64 \
-    # Wine — Tauri downloads and runs NSIS Windows tools through Wine
+    # NSIS — native Linux NSIS compiler; creates Windows installers from Linux.
+    # Tauri resolves the system 'makensis' binary via $PATH.  We also add a
+    # 'makensis.exe' symlink so older Tauri codepaths that look for the Windows
+    # binary name still work without Wine.
+    nsis \
+    # Wine — fallback for any Tauri NSIS plugin that must run as a Windows exe
     wine wine64 wine32 \
     # GTK/WebKit — required by Tauri's build system even for cross-compilation
     libwebkit2gtk-4.0-dev libgtk-3-dev \
     libayatana-appindicator3-dev librsvg2-dev \
     # Virtual display so Wine console tools don't error on missing DISPLAY
     xvfb \
+ && ln -sf /usr/bin/makensis /usr/local/bin/makensis.exe \
  && rm -rf /var/lib/apt/lists/*
 
 # ── 2. Node.js 20 + Yarn ─────────────────────────────────────────────────────
