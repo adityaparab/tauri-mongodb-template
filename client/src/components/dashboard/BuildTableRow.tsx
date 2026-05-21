@@ -1,0 +1,41 @@
+import TableCell from '@mui/material/TableCell'
+import TableRow from '@mui/material/TableRow'
+import Typography from '@mui/material/Typography'
+import type { BuildRecord } from '../../types'
+import { formatDateTime } from '../../utils/formatters'
+import BuildActionsMenu from './BuildActionsMenu'
+import BuildStatusChip from './BuildStatusChip'
+
+interface BuildTableRowProps {
+  record: BuildRecord
+  isDownloading: boolean
+  onDownload: (record: BuildRecord) => void
+}
+
+export default function BuildTableRow({ record, isDownloading, onDownload }: BuildTableRowProps) {
+  return (
+    <TableRow hover>
+      <TableCell sx={{ minWidth: 270 }}>
+        <Typography
+          variant="body2"
+          sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', wordBreak: 'break-all' }}
+        >
+          {record.uuid}
+        </Typography>
+      </TableCell>
+      <TableCell>
+        <BuildStatusChip status={record.status} />
+      </TableCell>
+      <TableCell>{formatDateTime(record.createdAt)}</TableCell>
+      <TableCell>{formatDateTime(record.completedAt)}</TableCell>
+      <TableCell sx={{ minWidth: 260 }}>
+        <Typography color={record.outputFilename ? 'text.primary' : 'text.secondary'} variant="body2" noWrap>
+          {record.outputFilename ?? 'Unavailable'}
+        </Typography>
+      </TableCell>
+      <TableCell align="right">
+        <BuildActionsMenu record={record} isDownloading={isDownloading} onDownload={onDownload} />
+      </TableCell>
+    </TableRow>
+  )
+}
