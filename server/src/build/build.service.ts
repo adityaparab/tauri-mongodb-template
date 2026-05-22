@@ -146,7 +146,7 @@ export class BuildService {
         if (code === 0) {
           // Locate the installer that build-installer.ps1 produced.
           const sourcePath = this.getBuiltFilePath(uuid);
-          const outputFilename = `inventory_${uuid}_setup.exe`;
+          const outputFilename = this.getOutputFilename(uuid);
           const destDir = path.join(this.buildOutputBase, username);
           const destPath = path.join(destDir, outputFilename);
 
@@ -281,12 +281,12 @@ export class BuildService {
    * Returns the absolute path where `build-installer.ps1` stores the finished
    * installer, based on the current platform.
    *
-   * The script copies the `.exe` to:
-   * - Linux/macOS (cross-compile): `src-tauri/target/x86_64-pc-windows-gnu/release/bundle/nsis/`
-   * - Windows (native):            `src-tauri/target/release/bundle/nsis/`
+   * Linux/macOS (cross-compile via NSIS):
+   *   `src-tauri/target/x86_64-pc-windows-gnu/release/bundle/nsis/inventory_<uuid>.exe`
+   * Windows (native MSI via WiX):
+   *   `src-tauri/target/release/bundle/msi/inventory_<uuid>.msi`
    */
   private getBuiltFilePath(uuid: string): string {
-    const filename = `inventory_${uuid}_setup.exe`;
     if (process.platform === 'linux' || process.platform === 'darwin') {
       return path.join(
         this.projectRoot,
@@ -296,7 +296,7 @@ export class BuildService {
         'release',
         'bundle',
         'nsis',
-        filename,
+        `inventory_${uuid}.exe`,
       );
     }
     return path.join(
@@ -305,9 +305,15 @@ export class BuildService {
       'target',
       'release',
       'bundle',
-      'nsis',
-      filename,
+      'msi',
+      `inventory_${uuid}.msi`,
     );
+  }
+
+  /** Returns the installer filename used for storage and download. */
+  private getOutputFilename(uuid: string): string {
+    const ext = process.platform === 'linux' || process.platform === 'darwin' ? 'exe' : 'msi';
+    return `inventory_${uuid}.${ext}`;
   }
 
   /**

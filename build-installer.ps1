@@ -1,11 +1,13 @@
 <#
 .SYNOPSIS
-    Builds a machine-specific MSI installer locked to the given machine UUID.
+    Builds a machine-specific installer locked to the given machine UUID.
 
 .DESCRIPTION
     1. Substitutes the target machine UUID into installer-hooks.nsh.
-    2. Runs `yarn tauri build --bundles msi`.
-    3. Copies the output to inventory_<UUID>.msi for easy identification.
+    2. Runs `yarn tauri build`:
+       - Linux/macOS (cross-compile): --bundles nsis  → produces an NSIS .exe installer
+       - Windows (native):            --bundles msi   → produces a WiX  .msi installer
+    3. Copies the output to inventory_<UUID>.exe/.msi for easy identification.
     4. Restores the PLACEHOLDER-UUID in installer-hooks.nsh so the source file
        stays clean for version control.
 
@@ -53,11 +55,11 @@ try {
     $onMacOS = [bool](Get-Variable -Name IsMacOS -ValueOnly -ErrorAction SilentlyContinue)
 
     if ($onLinux -or $onMacOS) {
-        Write-Host "Running: yarn tauri build --target x86_64-pc-windows-gnu --bundles msi"
-        yarn tauri build --target x86_64-pc-windows-gnu --bundles msi
+        Write-Host "Running: yarn tauri build --target x86_64-pc-windows-gnu --bundles nsis"
+        yarn tauri build --target x86_64-pc-windows-gnu --bundles nsis
         $bundleDir = [IO.Path]::Combine(
             $PSScriptRoot, "src-tauri", "target",
-            "x86_64-pc-windows-gnu", "release", "bundle", "msi"
+            "x86_64-pc-windows-gnu", "release", "bundle", "nsis"
         )
     } else {
         Write-Host "Running: yarn tauri build --bundles msi"
@@ -72,18 +74,21 @@ try {
     }
 
     # --- Copy output to UUID-named file --------------------------------------
-    $built = Get-ChildItem $bundleDir -Filter "*.msi" |
+    $fileFilter = if ($onLinux -or $onMacOS) { "*.exe" } else { "*.msi" }
+    $fileExt    = if ($onLinux -or $onMacOS) { "exe"   } else { "msi"   }
+
+    $built = Get-ChildItem $bundleDir -Filter $fileFilter |
              Sort-Object LastWriteTime -Descending |
              Select-Object -First 1
 
     if ($built) {
-        $dest = [IO.Path]::Combine($bundleDir, "inventory_${UUID}.msi")
+        $dest = [IO.Path]::Combine($bundleDir, "inventory_${UUID}.${fileExt}")
         Copy-Item $built.FullName $dest -Force
         Write-Host ""
         Write-Host "Build successful."
         Write-Host "Installer : $dest"
     } else {
-        throw "Build succeeded but no *.msi was found in $bundleDir"
+        throw "Build succeeded but no *.$fileExt was found in $bundleDir"
     }
 } finally {
     # --- Restore -------------------------------------------------------------

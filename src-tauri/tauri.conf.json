@@ -23,9 +23,10 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["msi"],
+    "targets": ["msi", "nsis"],
     "resources": ["binaries/mongod.exe"],
     "windows": {
+      "nsis": {},
       "wix": {}
     },
     "icon": [
