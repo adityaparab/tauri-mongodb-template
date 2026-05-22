@@ -13,7 +13,7 @@ interface BuildSummaryCardsProps {
 }
 
 export default function BuildSummaryCards({ records }: BuildSummaryCardsProps) {
-  const totalCount = records.length
+  const totalCount = new Set(records.map((record) => record.uuid)).size
   const buildingCount = records.filter((record) => record.status === 'building').length
   const completedCount = records.filter((record) => record.status === 'completed').length
   const failedCount = records.filter((record) => record.status === 'failed').length

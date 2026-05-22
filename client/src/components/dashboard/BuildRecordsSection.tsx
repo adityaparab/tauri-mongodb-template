@@ -11,7 +11,9 @@ interface BuildRecordsSectionProps {
   isLoading: boolean
   error: string | null
   downloadingUuid: string | null
+  deletingId: string | null
   onDownload: (record: BuildRecord) => void
+  onDelete: (record: BuildRecord) => void
   onRefresh: () => void
 }
 
@@ -20,7 +22,9 @@ export default function BuildRecordsSection({
   isLoading,
   error,
   downloadingUuid,
+  deletingId,
   onDownload,
+  onDelete,
   onRefresh,
 }: BuildRecordsSectionProps) {
   return (
@@ -42,7 +46,9 @@ export default function BuildRecordsSection({
         isLoading={isLoading}
         error={error}
         downloadingUuid={downloadingUuid}
+        deletingId={deletingId}
         onDownload={onDownload}
+        onDelete={onDelete}
         onRetry={onRefresh}
       />
     </Paper>

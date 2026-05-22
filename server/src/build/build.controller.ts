@@ -1,6 +1,8 @@
 import {
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   BadRequestException,
   NotFoundException,
@@ -24,6 +26,8 @@ import { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 
 const UUID_PATTERN =
   /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$/;
+
+const OBJECT_ID_PATTERN = /^[a-f\d]{24}$/i;
 
 /**
  * Build endpoints — both protected by JWT authentication.
@@ -268,5 +272,27 @@ Requires \`Authorization: Bearer <token>\` header.
       record.outputPath,
       record.outputFilename ?? `inventory_${uuid}_setup.exe`,
     );
+  }
+
+  /**
+   * Deletes a build record and its artifact file.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Delete('builds/:id')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Delete a build record and its artifact file' })
+  @ApiParam({ name: 'id', description: 'MongoDB ObjectId of the build record to delete' })
+  @ApiResponse({ status: 204, description: 'Record and artifact deleted.' })
+  @ApiResponse({ status: 400, description: 'Bad Request — invalid record ID format.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 404, description: 'Not Found — record does not exist or belongs to another user.' })
+  async deleteBuildRecord(
+    @Param('id') id: string,
+    @Request() req: { user: AuthenticatedUser },
+  ): Promise<void> {
+    if (!OBJECT_ID_PATTERN.test(id)) {
+      throw new BadRequestException('Invalid build record ID format.');
+    }
+    await this.buildService.deleteBuild(id, req.user.userId);
   }
 }

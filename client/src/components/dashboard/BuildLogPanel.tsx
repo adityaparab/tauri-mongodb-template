@@ -34,7 +34,7 @@ export default function BuildLogPanel({ activeUuid, events }: BuildLogPanelProps
             bgcolor: '#111827',
           }}
         >
-          {events.map((event, index) => (
+          {[...events].reverse().map((event, index) => (
             <BuildLogLine event={event} key={`${index}-${event.type}-${event.message}`} />
           ))}
         </Stack>

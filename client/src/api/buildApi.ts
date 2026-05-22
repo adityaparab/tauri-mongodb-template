@@ -11,6 +11,17 @@ export function listBuilds(token: string) {
   return requestJson<BuildRecord[]>('/builds', { token })
 }
 
+export async function deleteBuild(id: string, token: string): Promise<void> {
+  const response = await fetch(apiUrl(`/builds/${encodeURIComponent(id)}`), {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+
+  if (!response.ok) {
+    throw await createApiError(response)
+  }
+}
+
 export async function downloadBuild(uuid: string, token: string): Promise<DownloadedArtifact> {
   const response = await fetch(apiUrl(`/download/${encodeURIComponent(uuid)}`), {
     headers: {

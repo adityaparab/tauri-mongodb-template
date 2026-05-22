@@ -9,7 +9,9 @@ interface BuildRecordsContentProps {
   isLoading: boolean
   error: string | null
   downloadingUuid: string | null
+  deletingId: string | null
   onDownload: (record: BuildRecord) => void
+  onDelete: (record: BuildRecord) => void
   onRetry: () => void
 }
 
@@ -18,7 +20,9 @@ export default function BuildRecordsContent({
   isLoading,
   error,
   downloadingUuid,
+  deletingId,
   onDownload,
+  onDelete,
   onRetry,
 }: BuildRecordsContentProps) {
   if (isLoading) {
@@ -33,5 +37,13 @@ export default function BuildRecordsContent({
     return <EmptyBuildsState />
   }
 
-  return <BuildTable records={records} downloadingUuid={downloadingUuid} onDownload={onDownload} />
+  return (
+    <BuildTable
+      records={records}
+      downloadingUuid={downloadingUuid}
+      deletingId={deletingId}
+      onDownload={onDownload}
+      onDelete={onDelete}
+    />
+  )
 }

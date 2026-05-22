@@ -9,10 +9,12 @@ import BuildStatusChip from './BuildStatusChip'
 interface BuildTableRowProps {
   record: BuildRecord
   isDownloading: boolean
+  isDeleting: boolean
   onDownload: (record: BuildRecord) => void
+  onDelete: (record: BuildRecord) => void
 }
 
-export default function BuildTableRow({ record, isDownloading, onDownload }: BuildTableRowProps) {
+export default function BuildTableRow({ record, isDownloading, isDeleting, onDownload, onDelete }: BuildTableRowProps) {
   return (
     <TableRow hover>
       <TableCell sx={{ minWidth: 270 }}>
@@ -34,7 +36,13 @@ export default function BuildTableRow({ record, isDownloading, onDownload }: Bui
         </Typography>
       </TableCell>
       <TableCell align="right">
-        <BuildActionsMenu record={record} isDownloading={isDownloading} onDownload={onDownload} />
+        <BuildActionsMenu
+          record={record}
+          isDownloading={isDownloading}
+          isDeleting={isDeleting}
+          onDownload={onDownload}
+          onDelete={onDelete}
+        />
       </TableCell>
     </TableRow>
   )

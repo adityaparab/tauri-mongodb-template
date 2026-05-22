@@ -10,10 +10,12 @@ import BuildTableRow from './BuildTableRow'
 interface BuildTableProps {
   records: BuildRecord[]
   downloadingUuid: string | null
+  deletingId: string | null
   onDownload: (record: BuildRecord) => void
+  onDelete: (record: BuildRecord) => void
 }
 
-export default function BuildTable({ records, downloadingUuid, onDownload }: BuildTableProps) {
+export default function BuildTable({ records, downloadingUuid, deletingId, onDownload, onDelete }: BuildTableProps) {
   return (
     <TableContainer>
       <Table stickyHeader size="small" aria-label="Submitted UUID builds">
@@ -33,7 +35,9 @@ export default function BuildTable({ records, downloadingUuid, onDownload }: Bui
               key={record.id}
               record={record}
               isDownloading={downloadingUuid === record.uuid}
+              isDeleting={deletingId === record.id}
               onDownload={onDownload}
+              onDelete={onDelete}
             />
           ))}
         </TableBody>

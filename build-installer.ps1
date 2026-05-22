@@ -1,11 +1,11 @@
 <#
 .SYNOPSIS
-    Builds a machine-specific NSIS installer locked to the given machine UUID.
+    Builds a machine-specific MSI installer locked to the given machine UUID.
 
 .DESCRIPTION
     1. Substitutes the target machine UUID into installer-hooks.nsh.
-    2. Runs `yarn tauri build --bundles nsis`.
-    3. Copies the output to inventory_<UUID>_setup.exe for easy identification.
+    2. Runs `yarn tauri build --bundles msi`.
+    3. Copies the output to inventory_<UUID>.msi for easy identification.
     4. Restores the PLACEHOLDER-UUID in installer-hooks.nsh so the source file
        stays clean for version control.
 
@@ -53,17 +53,17 @@ try {
     $onMacOS = [bool](Get-Variable -Name IsMacOS -ValueOnly -ErrorAction SilentlyContinue)
 
     if ($onLinux -or $onMacOS) {
-        Write-Host "Running: yarn tauri build --target x86_64-pc-windows-gnu --bundles nsis"
-        yarn tauri build --target x86_64-pc-windows-gnu --bundles nsis
+        Write-Host "Running: yarn tauri build --target x86_64-pc-windows-gnu --bundles msi"
+        yarn tauri build --target x86_64-pc-windows-gnu --bundles msi
         $bundleDir = [IO.Path]::Combine(
             $PSScriptRoot, "src-tauri", "target",
-            "x86_64-pc-windows-gnu", "release", "bundle", "nsis"
+            "x86_64-pc-windows-gnu", "release", "bundle", "msi"
         )
     } else {
-        Write-Host "Running: yarn tauri build --bundles nsis"
-        yarn tauri build --bundles nsis
+        Write-Host "Running: yarn tauri build --bundles msi"
+        yarn tauri build --bundles msi
         $bundleDir = [IO.Path]::Combine(
-            $PSScriptRoot, "src-tauri", "target", "release", "bundle", "nsis"
+            $PSScriptRoot, "src-tauri", "target", "release", "bundle", "msi"
         )
     }
 
@@ -72,18 +72,18 @@ try {
     }
 
     # --- Copy output to UUID-named file --------------------------------------
-    $built = Get-ChildItem $bundleDir -Filter "*_x64-setup.exe" |
+    $built = Get-ChildItem $bundleDir -Filter "*.msi" |
              Sort-Object LastWriteTime -Descending |
              Select-Object -First 1
 
     if ($built) {
-        $dest = [IO.Path]::Combine($bundleDir, "inventory_${UUID}_setup.exe")
+        $dest = [IO.Path]::Combine($bundleDir, "inventory_${UUID}.msi")
         Copy-Item $built.FullName $dest -Force
         Write-Host ""
         Write-Host "Build successful."
         Write-Host "Installer : $dest"
     } else {
-        throw "Build succeeded but no *_x64-setup.exe was found in $bundleDir"
+        throw "Build succeeded but no *.msi was found in $bundleDir"
     }
 } finally {
     # --- Restore -------------------------------------------------------------

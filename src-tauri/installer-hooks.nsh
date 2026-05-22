@@ -19,8 +19,10 @@ Var MongoDbBrowseBtn
 ; ── Page order ────────────────────────────────────────────────────────────────
 ; 1. LicenseCheckPage  — invisible; validates machine UUID before any UI appears
 ; 2. MongoDbPathPage   — lets the user choose a MongoDB data folder
+; 3. PortCheckPage     — invisible; ensures port 27017 is free before installing
 Page custom LicenseCheckPageShow
 Page custom MongoDbPathPageShow MongoDbPathPageLeave
+Page custom PortCheckPageShow
 
 ; ── Machine UUID validation ───────────────────────────────────────────────────
 ; This page is never displayed.  In NSIS, calling Abort from a Page custom
@@ -93,6 +95,50 @@ Function MongoDbPathPageLeave
     Abort
   ${EndIf}
   CreateDirectory "$MongoDbDataPath"
+FunctionEnd
+
+; ── Port availability check ─────────────────────────────────────────────────
+; Invisible page: checks whether port 27017 (MongoDB default) is already bound.
+; If it is, the user is prompted to terminate the conflicting process.
+; Declining the prompt terminates the installation.
+Function PortCheckPageShow
+  nsExec::ExecToStack 'powershell -NoProfile -NonInteractive -Command "try { $$c = Get-NetTCPConnection -LocalPort 27017 -EA SilentlyContinue | Select-Object -First 1; if ($$c) { Write-Host $$c.OwningProcess -NoNewline } else { Write-Host 0 -NoNewline } } catch { Write-Host 0 -NoNewline }"'
+  Pop $R0   ; exit code
+  Pop $R1   ; OwningProcess PID, or "0" if port is free
+
+  ; Treat non-numeric or zero output as "port is free" and skip the page
+  IntOp $R9 $R1 + 0
+  ${If} $R9 <= 0
+    Abort
+  ${EndIf}
+
+  ; Resolve the process name for the descriptive prompt
+  nsExec::ExecToStack 'powershell -NoProfile -NonInteractive -Command "$$p = (Get-Process -Id $R1 -EA SilentlyContinue).Name; if ($$p) { Write-Host $$p -NoNewline } else { Write-Host Unknown -NoNewline }"'
+  Pop $R0   ; exit code
+  Pop $R2   ; process name
+
+  ; Ask the user: terminate the blocking process, or cancel installation
+  MessageBox MB_YESNO|MB_ICONEXCLAMATION \
+    "Port 27017 is required by the bundled MongoDB database server, but is already in use.$\r$\n$\r$\nConflicting process: $R2 (PID $R1)$\r$\n$\r$\nClick Yes to terminate this process and continue installing.$\r$\nClick No to cancel the installation." \
+    IDYES port27017_terminate
+
+  ; User declined — inform and quit
+  MessageBox MB_OK|MB_ICONINFORMATION \
+    "Installation cancelled.$\r$\nPlease stop the process occupying port 27017 and run the installer again."
+  Quit
+
+port27017_terminate:
+  nsExec::ExecToStack 'taskkill /F /PID $R1'
+  Pop $R0   ; exit code (0 = success)
+  Pop $R4   ; stdout (discard)
+  ${If} $R0 != 0
+    MessageBox MB_OK|MB_ICONSTOP \
+      "Could not terminate $R2 (PID $R1).$\r$\nPlease stop it manually and run the installer again."
+    Quit
+  ${EndIf}
+
+  ; Port is now free — skip page display and continue with installation
+  Abort
 FunctionEnd
 
 !macro NSIS_HOOK_PREINSTALL

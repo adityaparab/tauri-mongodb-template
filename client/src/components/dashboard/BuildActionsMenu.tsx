@@ -1,52 +1,57 @@
-import { useState, type MouseEvent } from 'react'
+import CircularProgress from '@mui/material/CircularProgress'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import DownloadIcon from '@mui/icons-material/Download'
-import MoreVertIcon from '@mui/icons-material/MoreVert'
 import IconButton from '@mui/material/IconButton'
-import ListItemIcon from '@mui/material/ListItemIcon'
-import ListItemText from '@mui/material/ListItemText'
-import Menu from '@mui/material/Menu'
-import MenuItem from '@mui/material/MenuItem'
+import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
 import type { BuildRecord } from '../../types'
 
 interface BuildActionsMenuProps {
   record: BuildRecord
   isDownloading: boolean
+  isDeleting: boolean
   onDownload: (record: BuildRecord) => void
+  onDelete: (record: BuildRecord) => void
 }
 
-export default function BuildActionsMenu({ record, isDownloading, onDownload }: BuildActionsMenuProps) {
-  const [anchorElement, setAnchorElement] = useState<HTMLElement | null>(null)
-  const isMenuOpen = Boolean(anchorElement)
-
-  const handleOpen = (event: MouseEvent<HTMLElement>) => {
-    setAnchorElement(event.currentTarget)
-  }
-
-  const handleClose = () => {
-    setAnchorElement(null)
-  }
-
-  const handleDownload = () => {
-    handleClose()
-    onDownload(record)
-  }
-
+export default function BuildActionsMenu({
+  record,
+  isDownloading,
+  isDeleting,
+  onDownload,
+  onDelete,
+}: BuildActionsMenuProps) {
   return (
-    <>
-      <Tooltip title="Build actions">
-        <IconButton aria-label="Build actions" onClick={handleOpen} size="small">
-          <MoreVertIcon />
-        </IconButton>
+    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+      <Tooltip title={isDownloading ? 'Preparing…' : 'Download artifact'}>
+        <span>
+          <IconButton
+            size="small"
+            disabled={!record.canDownload || isDownloading || isDeleting}
+            onClick={() => onDownload(record)}
+            aria-label="Download artifact"
+          >
+            {isDownloading ? <CircularProgress size={16} /> : <DownloadIcon fontSize="small" />}
+          </IconButton>
+        </span>
       </Tooltip>
-      <Menu anchorEl={anchorElement} open={isMenuOpen} onClose={handleClose}>
-        <MenuItem disabled={!record.canDownload || isDownloading} onClick={handleDownload}>
-          <ListItemIcon>
-            <DownloadIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{isDownloading ? 'Preparing artifact' : 'Download artifact'}</ListItemText>
-        </MenuItem>
-      </Menu>
-    </>
+      <Tooltip title={isDeleting ? 'Deleting…' : 'Delete record'}>
+        <span>
+          <IconButton
+            size="small"
+            color="error"
+            disabled={isDeleting || isDownloading}
+            onClick={() => onDelete(record)}
+            aria-label="Delete build record"
+          >
+            {isDeleting ? (
+              <CircularProgress size={16} color="error" />
+            ) : (
+              <DeleteOutlineIcon fontSize="small" />
+            )}
+          </IconButton>
+        </span>
+      </Tooltip>
+    </Stack>
   )
 }

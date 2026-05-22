@@ -310,6 +310,37 @@ export class BuildService {
     );
   }
 
+  /**
+   * Deletes a build record and its associated artifact file from the file system.
+   * Ownership is enforced — the record must belong to the requesting user.
+   */
+  async deleteBuild(id: string, userId: string): Promise<void> {
+    const record = await this.buildRecordModel
+      .findOne({
+        _id: new Types.ObjectId(id),
+        userId: new Types.ObjectId(userId),
+      })
+      .exec();
+
+    if (!record) {
+      throw new NotFoundException(
+        'Build record not found or you do not have permission to delete it.',
+      );
+    }
+
+    if (record.outputPath) {
+      try {
+        if (fs.existsSync(record.outputPath)) {
+          fs.unlinkSync(record.outputPath);
+        }
+      } catch {
+        // Proceed with deleting the database record even if file removal fails.
+      }
+    }
+
+    await this.buildRecordModel.findByIdAndDelete(id).exec();
+  }
+
   private getPowerShellCommand(): string {
     return process.platform === 'win32' ? 'powershell.exe' : 'pwsh';
   }
