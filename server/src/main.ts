@@ -8,7 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { AppModule } from './app.module';
 
-const API_ROUTE_PREFIXES = ['/api', '/auth', '/builds', '/download', '/generate', '/health'];
+const API_ROUTE_PREFIXES = ['/api', '/auth', '/builds', '/download', '/generate', '/health', '/setup', '/machines'];
 
 function isApiRoute(requestPath: string): boolean {
   return API_ROUTE_PREFIXES.some(

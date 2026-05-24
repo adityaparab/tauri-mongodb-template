@@ -3,6 +3,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { BuildModule } from './build/build.module';
 import { AuthModule } from './auth/auth.module';
+import { MachinesModule } from './machines/machines.module';
+import { SetupModule } from './setup/setup.module';
 import { HealthController } from './health.controller';
 
 /**
@@ -32,6 +34,8 @@ import { HealthController } from './health.controller';
     }),
     AuthModule,
     BuildModule,
+    MachinesModule,
+    SetupModule,
   ],
   controllers: [HealthController],
 })

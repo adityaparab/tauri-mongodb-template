@@ -1,7 +1,11 @@
+import DownloadIcon from '@mui/icons-material/Download'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
 import AppBar from '@mui/material/AppBar'
 import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import CircularProgress from '@mui/material/CircularProgress'
 import Toolbar from '@mui/material/Toolbar'
+import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import type { AuthUser } from '../../types'
 import AccountMenu from './AccountMenu'
@@ -9,9 +13,18 @@ import AccountMenu from './AccountMenu'
 interface DashboardHeaderProps {
   user: AuthUser
   onLogout: () => void
+  showSetupButton: boolean
+  isDownloadingSetup: boolean
+  onDownloadSetup: () => void
 }
 
-export default function DashboardHeader({ user, onLogout }: DashboardHeaderProps) {
+export default function DashboardHeader({
+  user,
+  onLogout,
+  showSetupButton,
+  isDownloadingSetup,
+  onDownloadSetup,
+}: DashboardHeaderProps) {
   return (
     <AppBar
       position="sticky"
@@ -39,6 +52,30 @@ export default function DashboardHeader({ user, onLogout }: DashboardHeaderProps
             Inventory Build Console
           </Typography>
         </Box>
+        {showSetupButton && (
+          <Tooltip
+            title="Downloads a personalised setup program. Run it on the target machine to register it with the dashboard."
+            arrow
+          >
+            <span>
+              <Button
+              variant="outlined"
+              size="small"
+              startIcon={
+                isDownloadingSetup ? (
+                  <CircularProgress size={14} color="inherit" />
+                ) : (
+                  <DownloadIcon fontSize="small" />
+                )
+              }
+              disabled={isDownloadingSetup}
+              onClick={onDownloadSetup}
+              sx={{ mr: 1, whiteSpace: 'nowrap' }}
+            >
+              {isDownloadingSetup ? 'Preparing…' : 'Download Setup'}
+            </Button>
+          </span>
+        </Tooltip>)}
         <AccountMenu user={user} onLogout={onLogout} />
       </Toolbar>
     </AppBar>

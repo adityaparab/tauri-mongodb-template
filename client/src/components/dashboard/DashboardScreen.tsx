@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import CloseIcon from '@mui/icons-material/Close'
+import DownloadIcon from '@mui/icons-material/Download'
+import MonitorIcon from '@mui/icons-material/Monitor'
 import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import CircularProgress from '@mui/material/CircularProgress'
 import IconButton from '@mui/material/IconButton'
 import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { downloadBuild, listBuilds, streamBuild, deleteBuild } from '../../api/buildApi'
+import { downloadSetupScript } from '../../api/setupApi'
 import { getErrorMessage } from '../../api/http'
 import type { AuthSession, BuildRecord, BuildStreamEvent, DashboardNotice } from '../../types'
 import { saveBlobAsFile } from '../../utils/download'
@@ -34,6 +39,7 @@ export default function DashboardScreen({ session, onLogout }: DashboardScreenPr
   const [downloadingUuid, setDownloadingUuid] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [notice, setNotice] = useState<DashboardNotice | null>(null)
+  const [isDownloadingSetup, setIsDownloadingSetup] = useState(false)
 
   const loadRecords = useCallback(async () => {
     setIsLoadingRecords(true)
@@ -151,9 +157,106 @@ export default function DashboardScreen({ session, onLogout }: DashboardScreenPr
 
   const handleDismissNotice = useCallback(() => setNotice(null), [])
 
+  const handleDownloadSetup = useCallback(async () => {
+    setIsDownloadingSetup(true)
+    try {
+      const artifact = await downloadSetupScript(session.token)
+      saveBlobAsFile(artifact.blob, artifact.filename)
+      setNotice({
+        severity: 'success',
+        message:
+          'install-generator.exe downloaded. Run it on the target machine to register it with the dashboard.',
+      })
+    } catch (requestError) {
+      setNotice({ severity: 'error', message: getErrorMessage(requestError) })
+    } finally {
+      setIsDownloadingSetup(false)
+    }
+  }, [session.token])
+
+  const hasUuids = !isLoadingRecords && uuidEntries.length > 0
+
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <DashboardHeader user={session.user} onLogout={onLogout} />
+      <DashboardHeader
+        user={session.user}
+        onLogout={onLogout}
+        showSetupButton={hasUuids}
+        isDownloadingSetup={isDownloadingSetup}
+        onDownloadSetup={handleDownloadSetup}
+      />
+
+      {/* ── Empty state: no machines registered yet ── */}
+      {!isLoadingRecords && !hasUuids && (
+        <Box
+          sx={{
+            minHeight: 'calc(100vh - 64px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            px: 3,
+          }}
+        >
+          <Paper
+            elevation={0}
+            sx={{
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 3,
+              p: { xs: 4, md: 6 },
+              maxWidth: 520,
+              width: '100%',
+              textAlign: 'center',
+            }}
+          >
+            <Box
+              sx={{
+                width: 72,
+                height: 72,
+                borderRadius: '50%',
+                bgcolor: 'primary.main',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mx: 'auto',
+                mb: 3,
+              }}
+            >
+              <MonitorIcon sx={{ fontSize: 36, color: 'primary.contrastText' }} />
+            </Box>
+            <Typography variant="h5" fontWeight={700} gutterBottom>
+              Register your first machine
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+              Download the setup program and run it on each Windows machine you want to
+              manage. It detects the machine’s UUID and registers it here automatically.
+              Then come back to download and install the app.
+            </Typography>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={
+                isDownloadingSetup ? (
+                  <CircularProgress size={18} color="inherit" />
+                ) : (
+                  <DownloadIcon />
+                )
+              }
+              disabled={isDownloadingSetup}
+              onClick={handleDownloadSetup}
+              sx={{ minWidth: 240 }}
+            >
+              {isDownloadingSetup ? 'Preparing…' : 'Download install‑generator.exe'}
+            </Button>
+            <Typography variant="caption" color="text.disabled" display="block" sx={{ mt: 2 }}>
+              Windows only · requires .NET Framework 4.x (built into Windows 10+)
+            </Typography>
+          </Paper>
+        </Box>
+      )}
+
+      {/* ── Main dashboard (shown once machines / builds exist) ── */}
+      {hasUuids && (
       <Box
         component="main"
         sx={{
@@ -235,7 +338,7 @@ export default function DashboardScreen({ session, onLogout }: DashboardScreenPr
             )}
           </Box>
         </Stack>
-      </Box>
+      </Box>)}
       <DashboardSnackbar notice={notice} onClose={handleDismissNotice} />
     </Box>
   )
