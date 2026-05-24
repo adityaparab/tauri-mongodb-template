@@ -71,7 +71,8 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 # on Windows sidesteps all of this.
 ARG LAUNCHER_RELEASE_TAG=launcher-latest
 ARG LAUNCHER_REPO=adityaparab/tauri-mongodb-template
-RUN curl -fsSL --retry 3 \
+RUN mkdir -p /app \
+ && curl -fsSL --retry 3 \
       "https://github.com/${LAUNCHER_REPO}/releases/download/${LAUNCHER_RELEASE_TAG}/machine-setup.exe" \
       -o /app/setup-launcher.exe \
  && ls -la /app/setup-launcher.exe
