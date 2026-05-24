@@ -66,6 +66,14 @@ RUN curl -fsSL https://packages.microsoft.com/config/ubuntu/22.04/packages-micro
  && apt-get install -y powershell \
  && rm -rf /var/lib/apt/lists/*
 
+# ── 3a. Pre-install ps12exe (cross-platform PS1 → Windows .exe compiler) ──────
+# ps12exe uses .NET Roslyn directly — no powershell.exe required — so it works
+# on Linux as well as Windows.  Installing here avoids a ~30 s download on the
+# first /setup/download request.
+RUN pwsh -NonInteractive -NoProfile -ExecutionPolicy Bypass -Command \
+      "Set-PSRepository -Name PSGallery -InstallationPolicy Trusted; \
+       Install-Module ps12exe -Scope AllUsers -Force -AllowClobber"
+
 # ── 4. Rust + Windows cross-compilation target ────────────────────────────────
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
     | sh -s -- -y --no-modify-path --default-toolchain stable \

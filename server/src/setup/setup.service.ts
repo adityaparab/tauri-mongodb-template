@@ -58,7 +58,7 @@ export class SetupService {
    * Generates a personalised `.exe` setup program.
    *
    * Internally calls `generateScript` to produce the PS1 source, then
-   * compiles it with `ps2exe` (auto-installed on first use) and returns
+   * compiles it with `ps12exe` (auto-installed on first use) and returns
    * the compiled Windows PE binary.  The output executable embeds its own
    * .NET host — the target machine only needs .NET Framework 4.x (built
    * into Windows 10+).  PowerShell does NOT need to be in PATH.
@@ -73,7 +73,7 @@ export class SetupService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Compiles a PS1 script string to a Windows PE executable using ps2exe.
+   * Compiles a PS1 script string to a Windows PE executable using ps12exe.
    *
    * On first invocation the module is downloaded from the PowerShell Gallery
    * (~4 MB, cached afterwards). Subsequent calls take ~3-5 s.
@@ -111,6 +111,9 @@ export class SetupService {
     // Build a helper script so we avoid any quoting issues with -Command.
     // $ErrorActionPreference = 'Stop' ensures any failure propagates to the
     // process exit code so execFile can catch it.
+    // ps12exe is the PowerShell 7+ / cross-platform successor to ps2exe;
+    // it uses .NET Roslyn directly and never calls powershell.exe, so it
+    // works on Railway (Linux) as well as Windows.
     const compileScript = [
       `$ErrorActionPreference = 'Stop'`,
       // Ensure the NuGet package provider exists (required by Install-Module).
@@ -119,12 +122,12 @@ export class SetupService {
       `}`,
       // Trust PSGallery so Install-Module never prompts for confirmation.
       `Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue`,
-      // Install ps2exe only if the command is not yet available.
-      `if (-not (Get-Command Invoke-ps2exe -ErrorAction SilentlyContinue)) {`,
-      `  Install-Module ps2exe -Scope CurrentUser -Force -AllowClobber | Out-Null`,
+      // Install ps12exe only if the command is not yet available.
+      `if (-not (Get-Command Invoke-ps12exe -ErrorAction SilentlyContinue)) {`,
+      `  Install-Module ps12exe -Scope CurrentUser -Force -AllowClobber | Out-Null`,
       `}`,
-      `Import-Module ps2exe`,
-      `Invoke-ps2exe -inputFile '${ps1Path}' -outputFile '${exePath}' -noConsole`,
+      `Import-Module ps12exe`,
+      `Invoke-ps12exe -inputFile '${ps1Path}' -outputFile '${exePath}' -noConsole`,
     ].join('\n');
 
     try {
@@ -147,16 +150,16 @@ export class SetupService {
             if (err) {
               reject(
                 new InternalServerErrorException(
-                  `ps2exe compilation failed: ${stderr || stdout || err.message}`,
+                  `ps12exe compilation failed: ${stderr || stdout || err.message}`,
                 ),
               );
               return;
             }
-            // ps2exe can exit 0 yet produce no output file on a script error.
+            // ps12exe can exit 0 yet produce no output file on a script error.
             if (!fs.existsSync(exePath)) {
               reject(
                 new InternalServerErrorException(
-                  `ps2exe exited without error but produced no executable.\nstdout: ${stdout}\nstderr: ${stderr}`,
+                  `ps12exe exited without error but produced no executable.\nstdout: ${stdout}\nstderr: ${stderr}`,
                 ),
               );
               return;
