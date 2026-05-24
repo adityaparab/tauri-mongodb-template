@@ -2,10 +2,6 @@ name: Build & publish launcher EXE
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'launcher/**'
-      - '.github/workflows/build-launcher.yml'
   workflow_dispatch:
 
 permissions:
