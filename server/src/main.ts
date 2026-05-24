@@ -41,6 +41,12 @@ function serveClientApp(app: NestExpressApplication): void {
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // Trust the first hop's X-Forwarded-Proto / X-Forwarded-For headers so that
+  // req.protocol returns 'https' (not 'http') when running behind Railway's
+  // reverse proxy.  Without this the ApiBaseUrl embedded in the setup EXE is
+  // http://… and Railway's HTTP→HTTPS redirect causes POST→GET conversion.
+  app.set('trust proxy', 1);
+
   // ---------------------------------------------------------------------------
   // Global validation — strips unknown fields and coerces types automatically.
   // ---------------------------------------------------------------------------

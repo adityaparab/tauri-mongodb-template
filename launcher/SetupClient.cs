@@ -30,7 +30,13 @@ public sealed class SetupClient : IDisposable
     public SetupClient(LauncherConfig config)
     {
         _config = config;
-        _http = new HttpClient
+        // AllowAutoRedirect=false: prevents HttpClient from silently converting
+        // POST→GET on 301/302 redirects (which happens when the server returns
+        // an http:// URL that redirects to https://).  The root cause is fixed
+        // server-side (trust proxy → correct https URL), but this guards against
+        // any future redirect scenario.
+        var handler = new HttpClientHandler { AllowAutoRedirect = false };
+        _http = new HttpClient(handler)
         {
             BaseAddress = new Uri(config.ApiBaseUrl.TrimEnd('/') + "/"),
             Timeout     = TimeSpan.FromSeconds(30),
