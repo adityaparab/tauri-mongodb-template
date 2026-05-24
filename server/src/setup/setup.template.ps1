@@ -1,20 +1,21 @@
-﻿# â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
-# â•‘            Inventory â€” Automated Machine Setup Script                        â•‘
-# â•‘  Generated for your account. Do not share this file â€” it contains a         â•‘
-# â•‘  single-use credential tied to your login session.                           â•‘
-# â•‘                                                                              â•‘
-# â•‘  Run with:  Right-click â†’ "Run with PowerShell"                              â•‘
-# â•‘         or: powershell -ExecutionPolicy Bypass -File "machine-setup.ps1"     â•‘
-# â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# =============================================================================
+# Inventory - Automated Machine Setup Script
+#
+# Generated for your account. Do not share this file - it contains a
+# single-use credential tied to your login session.
+#
+# Run with:  Right-click -> "Run with PowerShell"
+#        or: powershell -ExecutionPolicy Bypass -File "machine-setup.ps1"
+# =============================================================================
 
-# â”€â”€ INJECTED CONFIGURATION (populated by the server at download time) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- INJECTED CONFIGURATION (populated by the server at download time) --------
 $ApiBaseUrl = "__API_BASE_URL__"
 $SetupToken = "__SETUP_TOKEN__"
-# â”€â”€ END CONFIGURATION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- END CONFIGURATION --------------------------------------------------------
 
 $ErrorActionPreference = 'Stop'
 
-# â”€â”€ ASSEMBLIES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- ASSEMBLIES ---------------------------------------------------------------
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Net.Http
@@ -22,7 +23,7 @@ Add-Type -AssemblyName System.Net.Http
 [System.Windows.Forms.Application]::EnableVisualStyles()
 [System.Windows.Forms.Application]::SetCompatibleTextRenderingDefault($false)
 
-# â”€â”€ COLOUR PALETTE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- COLOUR PALETTE -----------------------------------------------------------
 $C_FORM     = [System.Drawing.Color]::FromArgb(14,  14,  24)
 $C_HEADER   = [System.Drawing.Color]::FromArgb(22,  22,  38)
 $C_SIDEBAR  = [System.Drawing.Color]::FromArgb(18,  18,  32)
@@ -40,7 +41,7 @@ $C_LOG_OK   = $C_DONE
 $C_LOG_WARN = [System.Drawing.Color]::FromArgb(220, 200, 80)
 $C_LOG_ERR  = $C_FAIL
 
-# â”€â”€ FONTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- FONTS --------------------------------------------------------------------
 $F_TITLE    = New-Object System.Drawing.Font("Segoe UI", 13, [System.Drawing.FontStyle]::Bold)
 $F_SUB      = New-Object System.Drawing.Font("Segoe UI", 9)
 $F_STEP     = New-Object System.Drawing.Font("Segoe UI", 9)
@@ -48,9 +49,9 @@ $F_STEP_ACT = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.Font
 $F_ICON     = New-Object System.Drawing.Font("Segoe UI Symbol", 11)
 $F_LOG      = New-Object System.Drawing.Font("Consolas", 9)
 
-# â”€â”€ FORM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- FORM ---------------------------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
-$form.Text            = "Inventory â€” Machine Setup"
+$form.Text            = "Inventory - Machine Setup"
 $form.ClientSize      = New-Object System.Drawing.Size(820, 548)
 $form.StartPosition   = "CenterScreen"
 $form.FormBorderStyle = "FixedSingle"
@@ -59,7 +60,7 @@ $form.BackColor       = $C_FORM
 $form.ForeColor       = $C_TEXT
 $form.Icon            = [System.Drawing.SystemIcons]::Application
 
-# â”€â”€ HEADER (58 px) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- HEADER (58 px) -----------------------------------------------------------
 $pnlHeader           = New-Object System.Windows.Forms.Panel
 $pnlHeader.Dock      = "Top"
 $pnlHeader.Height    = 58
@@ -67,7 +68,7 @@ $pnlHeader.BackColor = $C_HEADER
 $form.Controls.Add($pnlHeader)
 
 $lblTitle           = New-Object System.Windows.Forms.Label
-$lblTitle.Text      = "Inventory â€” Machine Setup"
+$lblTitle.Text      = "Inventory - Machine Setup"
 $lblTitle.Font      = $F_TITLE
 $lblTitle.ForeColor = [System.Drawing.Color]::White
 $lblTitle.AutoSize  = $true
@@ -82,7 +83,7 @@ $lblSub.AutoSize  = $true
 $lblSub.Location  = New-Object System.Drawing.Point(20, 36)
 $pnlHeader.Controls.Add($lblSub)
 
-# â”€â”€ BOTTOM BAR (52 px) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- BOTTOM BAR (52 px) -------------------------------------------------------
 $pnlBottom           = New-Object System.Windows.Forms.Panel
 $pnlBottom.Dock      = "Bottom"
 $pnlBottom.Height    = 52
@@ -106,7 +107,7 @@ $lblStatus.ForeColor = $C_DIM
 $lblStatus.Text      = "Preparing..."
 $pnlBottom.Controls.Add($lblStatus)
 
-# â”€â”€ SIDEBAR (left 260 px, between header and bottom) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- SIDEBAR (left 260 px, between header and bottom) -------------------------
 # Main area height: 548 - 58 - 52 = 438 px
 $pnlSide           = New-Object System.Windows.Forms.Panel
 $pnlSide.Location  = New-Object System.Drawing.Point(0, 58)
@@ -121,7 +122,7 @@ $pnlSep.Size      = New-Object System.Drawing.Size(1, 438)
 $pnlSep.BackColor = $C_SEP
 $form.Controls.Add($pnlSep)
 
-# â”€â”€ LOG PANEL (right 559 px) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- LOG PANEL (right 559 px) -------------------------------------------------
 $pnlLog           = New-Object System.Windows.Forms.Panel
 $pnlLog.Location  = New-Object System.Drawing.Point(261, 58)
 $pnlLog.Size      = New-Object System.Drawing.Size(559, 438)
@@ -140,7 +141,7 @@ $rtb.ScrollBars   = "Vertical"
 $rtb.WordWrap     = $false
 $pnlLog.Controls.Add($rtb)
 
-# â”€â”€ STEP ROWS (8 steps, 54 px each starting at y=14) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- STEP ROWS (4 steps, 52 px each starting at y=14) -------------------------
 $stepNames = @(
     "Authenticate",
     "Detect Machine UUID",
@@ -157,7 +158,7 @@ foreach ($i in 0..($stepNames.Count - 1)) {
     $dot.Size       = New-Object System.Drawing.Size(22, 22)
     $dot.Font       = $F_ICON
     $dot.ForeColor  = $C_PENDING
-    $dot.Text       = [char]0x25CB   # â—‹ (pending)
+    $dot.Text       = [char]0x25CB   # circle (pending)
     $dot.TextAlign  = "MiddleCenter"
     $pnlSide.Controls.Add($dot)
 
@@ -174,7 +175,7 @@ foreach ($i in 0..($stepNames.Count - 1)) {
     $stepY += 52
 }
 
-# â”€â”€ UI HELPERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- UI HELPERS ---------------------------------------------------------------
 
 function DoEvents {
     [System.Windows.Forms.Application]::DoEvents()
@@ -186,19 +187,19 @@ function Set-StepStatus {
     switch ($Status) {
         "running" {
             $c.Dot.ForeColor   = $C_RUNNING
-            $c.Dot.Text        = [char]0x25B6  # â–¶
+            $c.Dot.Text        = [char]0x25B6  # play triangle
             $c.Label.ForeColor = [System.Drawing.Color]::White
             $c.Label.Font      = $F_STEP_ACT
         }
         "done" {
             $c.Dot.ForeColor   = $C_DONE
-            $c.Dot.Text        = [char]0x2713  # âœ“
+            $c.Dot.Text        = [char]0x2713  # checkmark
             $c.Label.ForeColor = $C_TEXT
             $c.Label.Font      = $F_STEP
         }
         "failed" {
             $c.Dot.ForeColor   = $C_FAIL
-            $c.Dot.Text        = [char]0x2717  # âœ—
+            $c.Dot.Text        = [char]0x2717  # cross
             $c.Label.ForeColor = $C_FAIL
             $c.Label.Font      = $F_STEP
         }
@@ -234,7 +235,7 @@ function Add-Log {
     DoEvents
 }
 
-# â”€â”€ API HELPERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- API HELPERS --------------------------------------------------------------
 
 function Invoke-Post {
     param([string]$Path, [hashtable]$Body, [string]$Token = "")
@@ -263,7 +264,7 @@ function Invoke-Post {
     }
 }
 
-# â”€â”€ STEP FUNCTIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- STEP FUNCTIONS -----------------------------------------------------------
 
 function Step-Authenticate {
     Set-StepStatus 0 "running"
@@ -333,12 +334,12 @@ function Step-RegisterMachine {
     Set-Progress 4
 }
 
-# â”€â”€ SHARED STEP STATE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- SHARED STEP STATE --------------------------------------------------------
 $script:jwt         = $null
 $script:machineUuid = $null
 $script:machineName = $null
 
-# â”€â”€ MAIN EXECUTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- MAIN EXECUTION -----------------------------------------------------------
 $form.Show()
 DoEvents
 
@@ -349,9 +350,9 @@ try {
     Step-RegisterMachine
 
     Add-Log "" "normal"
-    Add-Log "â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•" "ok"
+    Add-Log "==============================================" "ok"
     Add-Log "  Machine registered successfully!" "ok"
-    Add-Log "â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•" "ok"
+    Add-Log "==============================================" "ok"
     Add-Log "" "normal"
     Add-Log "  UUID:     $($script:machineUuid)" "info"
     Add-Log "  Machine:  $($script:machineName)" "info"
