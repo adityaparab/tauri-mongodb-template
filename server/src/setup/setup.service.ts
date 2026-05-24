@@ -137,7 +137,13 @@ export class SetupService {
     ].join('\n');
 
     try {
-      await fs.promises.writeFile(ps1Path, ps1Content, 'utf8');
+      // Write the .ps1 with a UTF-8 BOM. Without the BOM, the PowerShell parser
+      // on Linux (pwsh + ps12exe) sometimes falls back to a single-byte encoding
+      // and splits multibyte UTF-8 sequences (em-dashes, box-drawing characters,
+      // etc.) into garbage tokens, producing spurious "Unexpected token" errors
+      // on perfectly valid comment lines.
+      const BOM = '\uFEFF';
+      await fs.promises.writeFile(ps1Path, BOM + ps1Content, 'utf8');
       await fs.promises.writeFile(compileScriptPath, compileScript, 'utf8');
 
       const psExe = process.platform === 'win32' ? 'powershell.exe' : 'pwsh';
