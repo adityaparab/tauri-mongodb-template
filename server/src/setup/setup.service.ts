@@ -123,11 +123,11 @@ export class SetupService {
       // Trust PSGallery so Install-Module never prompts for confirmation.
       `Set-PSRepository -Name PSGallery -InstallationPolicy Trusted -ErrorAction SilentlyContinue`,
       // Install ps12exe only if the command is not yet available.
-      `if (-not (Get-Command Invoke-ps12exe -ErrorAction SilentlyContinue)) {`,
+      `if (-not (Get-Command ps12exe -ErrorAction SilentlyContinue)) {`,
       `  Install-Module ps12exe -Scope CurrentUser -Force -AllowClobber | Out-Null`,
       `}`,
       `Import-Module ps12exe`,
-      `Invoke-ps12exe -inputFile '${ps1Path}' -outputFile '${exePath}' -noConsole`,
+      `ps12exe -inputFile '${ps1Path}' -outputFile '${exePath}' -noConsole`,
     ].join('\n');
 
     try {
