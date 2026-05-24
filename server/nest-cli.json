@@ -3,9 +3,6 @@
   "collection": "@nestjs/schematics",
   "sourceRoot": "src",
   "compilerOptions": {
-    "deleteOutDir": true,
-    "assets": [
-      { "include": "setup/**/*.ps1", "watchAssets": true }
-    ]
+    "deleteOutDir": true
   }
 }

@@ -40,18 +40,23 @@ export class SetupController {
   constructor(private readonly setupService: SetupService) {}
 
   /**
-   * Download a personalised PowerShell setup script.
+   * Download a personalised Windows setup executable.
    *
-   * Generates a single-use setup token, embeds it together with this server's
-   * own URL into the PS1 template, and serves the result as a file download.
+   * Streams a self-contained .NET 8 / WinForms launcher EXE (pre-built on a
+   * Windows CI runner and baked into the Docker image at build time) with a
+   * per-user configuration footer appended to the end.  The footer contains
+   * this server's URL and a single-use setup token.
    *
-   * The returned script, when executed on a Windows machine, will:
-   * 1. Exchange the token for a short-lived JWT.
-   * 2. Detect the machine UUID and hostname.
-   * 3. Register the machine.
-   * 4. Trigger and stream an installer build.
-   * 5. Download and silently install the generated installer.
-   * 6. Launch the application.
+   * When the user runs the EXE on their Windows machine it will:
+   *
+   *   1. Read the appended footer to recover its API URL and setup token.
+   *   2. Exchange the token for a short-lived JWT.
+   *   3. Detect the machine UUID (via WMI) and hostname.
+   *   4. Register the machine with the server.
+   *   5. Revoke the setup token in a `finally` block.
+   *
+   * After registration the user is prompted in the UI to return to the
+   * dashboard and download the per-machine installer.
    */
   @UseGuards(JwtAuthGuard)
   @Get('download')
@@ -78,7 +83,7 @@ export class SetupController {
     res.setHeader('Content-Type', 'application/vnd.microsoft.portable-executable');
     res.setHeader(
       'Content-Disposition',
-      'attachment; filename="install-generator.exe"',
+      'attachment; filename="machine-setup.exe"',
     );
     res.send(exeBuffer);
   }

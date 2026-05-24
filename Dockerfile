@@ -57,22 +57,24 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
  && npm install -g yarn \
  && rm -rf /var/lib/apt/lists/*
 
-# ── 3. PowerShell (pwsh) ──────────────────────────────────────────────────────
-RUN curl -fsSL https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb \
-      -o /tmp/packages-microsoft-prod.deb \
- && dpkg -i /tmp/packages-microsoft-prod.deb \
- && rm /tmp/packages-microsoft-prod.deb \
- && apt-get update \
- && apt-get install -y powershell \
- && rm -rf /var/lib/apt/lists/*
-
-# ── 3a. Pre-install ps12exe (cross-platform PS1 → Windows .exe compiler) ──────
-# ps12exe uses .NET Roslyn directly — no powershell.exe required — so it works
-# on Linux as well as Windows.  Installing here avoids a ~30 s download on the
-# first /setup/download request.
-RUN pwsh -NonInteractive -NoProfile -ExecutionPolicy Bypass -Command \
-      "Set-PSRepository -Name PSGallery -InstallationPolicy Trusted; \
-       Install-Module ps12exe -Scope AllUsers -Force -AllowClobber"
+# ── 3. Machine-setup launcher EXE (pre-built on Windows in CI) ───────────────
+# The launcher is a small .NET 8 self-contained WinForms app built on a
+# Windows GitHub Actions runner (.github/workflows/build-launcher.yml) and
+# attached to the floating `launcher-latest` GitHub release.  At runtime the
+# Nest server appends a per-user configuration footer to this binary and
+# streams it as the response to GET /setup/download.
+#
+# Building a Windows EXE from a Linux container was attempted with both
+# ps2exe and ps12exe; ps2exe shells out to powershell.exe (Windows only) and
+# ps12exe relies on a Roslyn version newer than what pwsh on Linux bundles
+# (`Microsoft.CodeAnalysis.ResourceDescriptionKind` missing).  Pre-building
+# on Windows sidesteps all of this.
+ARG LAUNCHER_RELEASE_TAG=launcher-latest
+ARG LAUNCHER_REPO=adityaparab/tauri-mongodb-template
+RUN curl -fsSL --retry 3 \
+      "https://github.com/${LAUNCHER_REPO}/releases/download/${LAUNCHER_RELEASE_TAG}/machine-setup.exe" \
+      -o /app/setup-launcher.exe \
+ && ls -la /app/setup-launcher.exe
 
 # ── 4. Rust + Windows cross-compilation target ────────────────────────────────
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
