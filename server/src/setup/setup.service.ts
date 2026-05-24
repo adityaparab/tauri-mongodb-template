@@ -75,13 +75,26 @@ export class SetupService {
    * is required.
    */
   async generateExe(userId: string, apiBaseUrl: string): Promise<Buffer> {
-    const launcher = await this.loadLauncherBytes();
-    const setupToken = await this.issueSetupToken(userId);
+    this.logger.log(`[download] userId=${userId} apiBaseUrl=${apiBaseUrl}`);
 
-    return this.appendFooter(launcher, {
+    this.logger.log('[download] step 1/3 – loading launcher EXE from disk...');
+    const launcher = await this.loadLauncherBytes();
+    this.logger.log(`[download] step 1/3 – launcher loaded (${launcher.length} bytes)`);
+
+    this.logger.log('[download] step 2/3 – issuing setup token...');
+    const setupToken = await this.issueSetupToken(userId);
+    this.logger.log(`[download] step 2/3 – setup token issued (token=${setupToken})`);
+
+    this.logger.log('[download] step 3/3 – appending config footer...');
+    const result = this.appendFooter(launcher, {
       ApiBaseUrl: apiBaseUrl,
       SetupToken: setupToken,
     });
+    this.logger.log(
+      `[download] step 3/3 – done. total EXE size=${result.length} bytes`,
+    );
+
+    return result;
   }
 
   // ---------------------------------------------------------------------------
@@ -94,17 +107,26 @@ export class SetupService {
    * silently serve a 0-byte download.
    */
   private async loadLauncherBytes(): Promise<Buffer> {
-    if (this.launcherBytes) return this.launcherBytes;
+    if (this.launcherBytes) {
+      this.logger.debug(
+        `[download] launcher EXE served from cache (${this.launcherBytes.length} bytes)`,
+      );
+      return this.launcherBytes;
+    }
 
+    this.logger.log(`[download] reading launcher EXE from disk: ${this.launcherPath}`);
     try {
       const bytes = await fs.promises.readFile(this.launcherPath);
       this.logger.log(
-        `Loaded launcher EXE from ${this.launcherPath} (${bytes.length} bytes)`,
+        `[download] launcher EXE loaded and cached (${bytes.length} bytes)`,
       );
       this.launcherBytes = bytes;
       return bytes;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(
+        `[download] launcher EXE not found at "${this.launcherPath}": ${message}`,
+      );
       throw new InternalServerErrorException(
         `Setup launcher executable is not available at "${this.launcherPath}". ` +
           `It must be downloaded into the image at build time from the ` +
@@ -120,11 +142,15 @@ export class SetupService {
     const token = randomUUID();
     const expiresAt = new Date(Date.now() + TOKEN_TTL_MS);
 
+    this.logger.log(
+      `[download] inserting setup token into DB (userId=${userId} expiresAt=${expiresAt.toISOString()})`,
+    );
     await this.setupTokenModel.create({
       token,
       userId: new Types.ObjectId(userId),
       expiresAt,
     });
+    this.logger.log(`[download] setup token persisted`);
 
     return token;
   }
@@ -164,27 +190,34 @@ export class SetupService {
    * @throws UnauthorizedException for any validation failure (expired, used, etc.)
    */
   async exchangeToken(setupToken: string): Promise<{ accessToken: string }> {
+    this.logger.log(`[exchange] token exchange requested (token=${setupToken})`);
+
     const record = await this.setupTokenModel
       .findOne({ token: setupToken })
       .exec();
 
     if (!record) {
+      this.logger.warn(`[exchange] token not found: ${setupToken}`);
       throw new UnauthorizedException('Invalid setup token.');
     }
     if (record.expiresAt < new Date()) {
+      this.logger.warn(`[exchange] token expired (token=${setupToken} expiresAt=${record.expiresAt.toISOString()})`);
       throw new UnauthorizedException(
         'Setup token has expired. Please download a new setup executable from the dashboard.',
       );
     }
     if (record.exchanged) {
+      this.logger.warn(`[exchange] token already exchanged: ${setupToken}`);
       throw new UnauthorizedException(
         'Setup token has already been used. Each setup executable can only be run once.',
       );
     }
     if (record.revoked) {
+      this.logger.warn(`[exchange] token revoked: ${setupToken}`);
       throw new UnauthorizedException('Setup token has been revoked.');
     }
 
+    this.logger.log(`[exchange] marking token as exchanged (token=${setupToken})`);
     // Mark as exchanged before issuing the JWT to prevent replay attacks.
     await this.setupTokenModel
       .findByIdAndUpdate(record._id, { exchanged: true })
@@ -194,6 +227,7 @@ export class SetupService {
     if (!user) {
       throw new NotFoundException('Associated user account no longer exists.');
     }
+    this.logger.log(`[exchange] issuing JWT for userId=${record.userId} username=${user.username}`);
 
     const payload = {
       sub: (user._id as { toString(): string }).toString(),
@@ -206,6 +240,7 @@ export class SetupService {
       secret: this.config.get<string>('JWT_SECRET', 'changeme-jwt-secret'),
     });
 
+    this.logger.log(`[exchange] JWT issued successfully (token=${setupToken})`);
     return { accessToken };
   }
 
@@ -221,8 +256,14 @@ export class SetupService {
    * Silently ignores unknown tokens to avoid information leakage.
    */
   async revokeToken(setupToken: string): Promise<void> {
-    await this.setupTokenModel
+    this.logger.log(`[revoke] revoking setup token (token=${setupToken})`);
+    const result = await this.setupTokenModel
       .findOneAndUpdate({ token: setupToken }, { revoked: true })
       .exec();
+    if (result) {
+      this.logger.log(`[revoke] token revoked (token=${setupToken})`);
+    } else {
+      this.logger.warn(`[revoke] token not found, nothing to revoke (token=${setupToken})`);
+    }
   }
 }
