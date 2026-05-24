@@ -95,6 +95,7 @@ export class SetupController {
    * single-use: it is marked `exchanged` upon success and cannot be reused.
    * Returns a JWT with a 2-hour expiry that is accepted by all protected
    * endpoints (generate, download, machines, etc.).
+   * 
    */
   @Post('exchange')
   @HttpCode(HttpStatus.OK)
