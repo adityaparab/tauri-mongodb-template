@@ -127,6 +127,12 @@ export class SetupService {
       `  Install-Module ps12exe -Scope CurrentUser -Force -AllowClobber | Out-Null`,
       `}`,
       `Import-Module ps12exe`,
+      // ps12exe writes coloured status lines; in a headless Docker/Railway
+      // environment the console colours are -1 (no TTY) which causes
+      // "Cannot process the color because -1 is not a valid color".
+      // Pre-set them to safe values before invoking the compiler.
+      `try { if ([int]$Host.UI.RawUI.BackgroundColor -lt 0) { $Host.UI.RawUI.BackgroundColor = 'Black' } } catch {}`,
+      `try { if ([int]$Host.UI.RawUI.ForegroundColor -lt 0) { $Host.UI.RawUI.ForegroundColor = 'Gray'  } } catch {}`,
       `ps12exe -inputFile '${ps1Path}' -outputFile '${exePath}' -noConsole`,
     ].join('\n');
 
