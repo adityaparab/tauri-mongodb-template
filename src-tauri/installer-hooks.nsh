@@ -43,16 +43,6 @@ Function LicenseCheckPageShow
 FunctionEnd
 
 !macro NSIS_HOOK_PREINSTALL
-  CreateDirectory "$INSTDIR\conf"
-  IfFileExists "$INSTDIR\conf\config.json" config_exists config_create
-
-  config_create:
-    FileOpen $0 "$INSTDIR\conf\config.json" w
-    FileWrite $0 '{$\r$\n  "dbPath": ""$\r$\n}$\r$\n'
-    FileClose $0
-
-  config_exists:
-  nsExec::ExecToLog 'icacls "$INSTDIR\conf" /grant *S-1-5-32-545:(OI)(CI)M /T /C'
 !macroend
 
 !macro NSIS_HOOK_POSTINSTALL

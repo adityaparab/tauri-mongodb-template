@@ -16,7 +16,7 @@ use std::{
 };
 use tauri::{AppHandle, Manager, State};
 
-const CONFIG_DIR_NAME: &str = "conf";
+const CONFIG_DIR_NAME: &str = ".inventory";
 const CONFIG_FILE_NAME: &str = "config.json";
 const DATABASE_NAME: &str = "inventory";
 const MONGO_HOST: &str = "127.0.0.1";
@@ -84,12 +84,22 @@ fn format_error(error: impl std::fmt::Display) -> String {
 }
 
 fn config_file_path() -> Result<PathBuf, String> {
+    let user_profile = std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))
+        .ok_or_else(|| "Could not find the current user's home directory".to_string())?;
+
+    Ok(PathBuf::from(user_profile)
+        .join(CONFIG_DIR_NAME)
+        .join(CONFIG_FILE_NAME))
+}
+
+fn legacy_config_file_path() -> Result<PathBuf, String> {
     let exe_path = std::env::current_exe().map_err(format_error)?;
     let install_dir = exe_path
         .parent()
         .ok_or_else(|| "Could not find the application installation directory".to_string())?;
 
-    Ok(install_dir.join(CONFIG_DIR_NAME).join(CONFIG_FILE_NAME))
+    Ok(install_dir.join("conf").join(CONFIG_FILE_NAME))
 }
 
 fn write_config(config_path: &Path, config: &AppConfig) -> Result<(), String> {
@@ -103,6 +113,18 @@ fn write_config(config_path: &Path, config: &AppConfig) -> Result<(), String> {
 
 fn read_config() -> Result<AppConfig, String> {
     let config_path = config_file_path()?;
+
+    if !config_path.exists() {
+        let legacy_path = legacy_config_file_path()?;
+
+        if legacy_path.exists() {
+            if let Some(parent) = config_path.parent() {
+                fs::create_dir_all(parent).map_err(format_error)?;
+            }
+
+            fs::copy(&legacy_path, &config_path).map_err(format_error)?;
+        }
+    }
 
     if !config_path.exists() {
         let config = AppConfig::default();

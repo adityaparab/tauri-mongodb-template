@@ -9,10 +9,6 @@ g# ── Cargo / Rust ───────────────────
 # JSON schemas auto-generated from capabilities — regenerated on every build.
 /gen/schemas/
 
-# ── Runtime / data files written at install or launch time ───────────────────
-# The JSON config written by the app at launch (contains the user-chosen path)
-conf/config.json
-
 # MongoDB log and lock files that mongod writes into the data directory
 # (only relevant if dbPath is accidentally set inside the project tree)
 *.lock
