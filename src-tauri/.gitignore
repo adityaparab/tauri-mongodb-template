@@ -10,8 +10,8 @@ g# ── Cargo / Rust ───────────────────
 /gen/schemas/
 
 # ── Runtime / data files written at install or launch time ───────────────────
-# The INI config written by the NSIS installer (contains the user-chosen path)
-inventory.ini
+# The JSON config written by the app at launch (contains the user-chosen path)
+conf/config.json
 
 # MongoDB log and lock files that mongod writes into the data directory
 # (only relevant if dbPath is accidentally set inside the project tree)

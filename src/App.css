@@ -172,6 +172,28 @@ button:focus-visible {
   background: #e6f2ec;
 }
 
+.sidebar-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  width: 42px;
+  padding: 0;
+  font-size: 1.1rem;
+}
+
+.icon-button.is-active {
+  border-color: #3c7c65;
+  color: #123f30;
+  background: #e6f2ec;
+}
+
 .detail-view {
   display: flex;
   flex-direction: column;
@@ -298,6 +320,10 @@ pre {
     max-height: 260px;
   }
 
+  .sidebar-footer {
+    justify-content: flex-start;
+  }
+
   .detail-view {
     min-height: auto;
     padding: 20px;
@@ -351,6 +377,11 @@ pre {
   }
 
   .collection-item.is-active {
+    color: #d8f4e8;
+    background: #1d3c31;
+  }
+
+  .icon-button.is-active {
     color: #d8f4e8;
     background: #1d3c31;
   }

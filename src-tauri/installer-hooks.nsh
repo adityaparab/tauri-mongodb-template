@@ -12,17 +12,9 @@
 ;     !define LICENSED_MACHINE_UUID "4C4C4544-0046-4210-8031-CAC04F575931"
 !define LICENSED_MACHINE_UUID "PLACEHOLDER-UUID"
 
-Var MongoDbDataPath
-Var MongoDbPathField
-Var MongoDbBrowseBtn
-
 ; ── Page order ────────────────────────────────────────────────────────────────
 ; 1. LicenseCheckPage  — invisible; validates machine UUID before any UI appears
-; 2. MongoDbPathPage   — lets the user choose a MongoDB data folder
-; 3. PortCheckPage     — invisible; ensures port 27017 is free before installing
 Page custom LicenseCheckPageShow
-Page custom MongoDbPathPageShow MongoDbPathPageLeave
-Page custom PortCheckPageShow
 
 ; ── Machine UUID validation ───────────────────────────────────────────────────
 ; This page is never displayed.  In NSIS, calling Abort from a Page custom
@@ -50,101 +42,18 @@ Function LicenseCheckPageShow
   Abort
 FunctionEnd
 
-Function MongoDbPathPageShow
-  ${If} $MongoDbDataPath == ""
-    StrCpy $MongoDbDataPath "$LOCALAPPDATA\inventory\mongodb-data"
-  ${EndIf}
-
-  !insertmacro MUI_HEADER_TEXT \
-    "MongoDB Data Folder" \
-    "Choose the location where the inventory database will be stored."
-
-  nsDialogs::Create 1018
-  Pop $0
-  ${If} $0 == error
-    Abort
-  ${EndIf}
-
-  ${NSD_CreateLabel} 0 0 100% 36u \
-    "Setup will store the inventory database files in the following folder.$\r$\n$\r$\nTo store them in a different folder, click Browse and select another folder. Click Next to continue."
-  Pop $0
-
-  ${NSD_CreateText} 0 52u 280u 14u "$MongoDbDataPath"
-  Pop $MongoDbPathField
-
-  ${NSD_CreateButton} 285u 51u 50u 15u "Browse..."
-  Pop $MongoDbBrowseBtn
-  ${NSD_OnClick} $MongoDbBrowseBtn MongoDbPathBrowseClick
-
-  nsDialogs::Show
-FunctionEnd
-
-Function MongoDbPathBrowseClick
-  ${NSD_GetText} $MongoDbPathField $0
-  nsDialogs::SelectFolderDialog "Select a folder for MongoDB data files" "$0"
-  Pop $0
-  ${If} $0 != error
-    ${NSD_SetText} $MongoDbPathField $0
-  ${EndIf}
-FunctionEnd
-
-Function MongoDbPathPageLeave
-  ${NSD_GetText} $MongoDbPathField $MongoDbDataPath
-  ${If} $MongoDbDataPath == ""
-    MessageBox MB_ICONEXCLAMATION "Please select a folder for the MongoDB database files."
-    Abort
-  ${EndIf}
-  CreateDirectory "$MongoDbDataPath"
-FunctionEnd
-
-; ── Port availability check ─────────────────────────────────────────────────
-; Invisible page: checks whether port 27017 (MongoDB default) is already bound.
-; If it is, the user is prompted to terminate the conflicting process.
-; Declining the prompt terminates the installation.
-Function PortCheckPageShow
-  nsExec::ExecToStack 'powershell -NoProfile -NonInteractive -Command "try { $$c = Get-NetTCPConnection -LocalPort 27017 -EA SilentlyContinue | Select-Object -First 1; if ($$c) { Write-Host $$c.OwningProcess -NoNewline } else { Write-Host 0 -NoNewline } } catch { Write-Host 0 -NoNewline }"'
-  Pop $R0   ; exit code
-  Pop $R1   ; OwningProcess PID, or "0" if port is free
-
-  ; Treat non-numeric or zero output as "port is free" and skip the page
-  IntOp $R9 $R1 + 0
-  ${If} $R9 <= 0
-    Abort
-  ${EndIf}
-
-  ; Resolve the process name for the descriptive prompt
-  nsExec::ExecToStack 'powershell -NoProfile -NonInteractive -Command "$$p = (Get-Process -Id $R1 -EA SilentlyContinue).Name; if ($$p) { Write-Host $$p -NoNewline } else { Write-Host Unknown -NoNewline }"'
-  Pop $R0   ; exit code
-  Pop $R2   ; process name
-
-  ; Ask the user: terminate the blocking process, or cancel installation
-  MessageBox MB_YESNO|MB_ICONEXCLAMATION \
-    "Port 27017 is required by the bundled MongoDB database server, but is already in use.$\r$\n$\r$\nConflicting process: $R2 (PID $R1)$\r$\n$\r$\nClick Yes to terminate this process and continue installing.$\r$\nClick No to cancel the installation." \
-    IDYES port27017_terminate
-
-  ; User declined — inform and quit
-  MessageBox MB_OK|MB_ICONINFORMATION \
-    "Installation cancelled.$\r$\nPlease stop the process occupying port 27017 and run the installer again."
-  Quit
-
-port27017_terminate:
-  nsExec::ExecToStack 'taskkill /F /PID $R1'
-  Pop $R0   ; exit code (0 = success)
-  Pop $R4   ; stdout (discard)
-  ${If} $R0 != 0
-    MessageBox MB_OK|MB_ICONSTOP \
-      "Could not terminate $R2 (PID $R1).$\r$\nPlease stop it manually and run the installer again."
-    Quit
-  ${EndIf}
-
-  ; Port is now free — skip page display and continue with installation
-  Abort
-FunctionEnd
-
 !macro NSIS_HOOK_PREINSTALL
-  ; MongoDB data path was collected in the wizard page above.
+  CreateDirectory "$INSTDIR\conf"
+  IfFileExists "$INSTDIR\conf\config.json" config_exists config_create
+
+  config_create:
+    FileOpen $0 "$INSTDIR\conf\config.json" w
+    FileWrite $0 '{$\r$\n  "dbPath": ""$\r$\n}$\r$\n'
+    FileClose $0
+
+  config_exists:
+  nsExec::ExecToLog 'icacls "$INSTDIR\conf" /grant *S-1-5-32-545:(OI)(CI)M /T /C'
 !macroend
 
 !macro NSIS_HOOK_POSTINSTALL
-  WriteINIStr "$INSTDIR\inventory.ini" "mongodb" "dbPath" "$MongoDbDataPath"
 !macroend

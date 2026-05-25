@@ -6,10 +6,16 @@ import "./App.css";
 type MongoStatus = {
   configured: boolean;
   dbPath: string | null;
+  savedDbPath: string;
   configPath: string;
   running: boolean;
   connectionUri: string;
   database: string;
+};
+
+type PortProcess = {
+  pid: number;
+  name: string;
 };
 
 type DocumentsResponse = {
@@ -24,6 +30,7 @@ function App() {
   const [documents, setDocuments] = useState<unknown[]>([]);
   const [setupPath, setSetupPath] = useState("");
   const [error, setError] = useState("");
+  const [activeView, setActiveView] = useState<"documents" | "settings">("documents");
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
   const [isLoadingCollections, setIsLoadingCollections] = useState(false);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
@@ -37,6 +44,29 @@ function App() {
     return selectedCollection;
   }, [selectedCollection]);
 
+  async function startDatabaseWithPrompt() {
+    const conflict = await invoke<PortProcess | null>("get_mongodb_port_process");
+
+    if (conflict) {
+      const shouldTerminate = window.confirm(
+        `MongoDB needs port 27017, but it is currently used by ${conflict.name} (PID ${conflict.pid}).\n\nClose that process and continue?`,
+      );
+
+      if (!shouldTerminate) {
+        setError("MongoDB could not start because port 27017 is busy.");
+        return false;
+      }
+
+      await invoke("terminate_mongodb_port_process", { pid: conflict.pid });
+    }
+
+    const nextStatus = await invoke<MongoStatus>("start_mongodb");
+    setStatus(nextStatus);
+    setSetupPath(nextStatus.savedDbPath);
+
+    return true;
+  }
+
   async function refreshStatus() {
     setIsLoadingStatus(true);
     setError("");
@@ -44,10 +74,14 @@ function App() {
     try {
       const nextStatus = await invoke<MongoStatus>("get_mongodb_status");
       setStatus(nextStatus);
-      setSetupPath(nextStatus.dbPath ?? "");
+      setSetupPath(nextStatus.savedDbPath);
 
       if (nextStatus.configured) {
-        await loadCollections();
+        const started = await startDatabaseWithPrompt();
+
+        if (started) {
+          await loadCollections();
+        }
       }
     } catch (caughtError) {
       setError(String(caughtError));
@@ -127,7 +161,14 @@ function App() {
       });
 
       setStatus(nextStatus);
-      await loadCollections();
+      setSetupPath(nextStatus.savedDbPath);
+
+      const started = await startDatabaseWithPrompt();
+
+      if (started) {
+        setActiveView("documents");
+        await loadCollections();
+      }
     } catch (caughtError) {
       setError(String(caughtError));
     } finally {
@@ -140,6 +181,8 @@ function App() {
   }, []);
 
   const isConfigured = status?.configured ?? false;
+  const isSettingsView = activeView === "settings";
+  const showSetupView = !isConfigured && !isSettingsView;
 
   return (
     <main className="app-shell">
@@ -176,37 +219,54 @@ function App() {
               className={collection === selectedCollection ? "collection-item is-active" : "collection-item"}
               key={collection}
               type="button"
-              onClick={() => loadDocuments(collection)}
+              onClick={() => {
+                setActiveView("documents");
+                void loadDocuments(collection);
+              }}
             >
               <span>{collection}</span>
             </button>
           ))}
         </nav>
+
+        <div className="sidebar-footer">
+          <button
+            className={isSettingsView ? "icon-button is-active" : "icon-button"}
+            type="button"
+            aria-label="Settings"
+            title="Settings"
+            onClick={() => setActiveView("settings")}
+          >
+            <span aria-hidden="true">⚙</span>
+          </button>
+        </div>
       </aside>
 
       <section className="detail-view">
         <header className="detail-header">
           <div>
-            <p className="eyebrow">Collection</p>
-            <h2>{selectedDocumentTitle}</h2>
+            <p className="eyebrow">{isSettingsView ? "Configuration" : "Collection"}</p>
+            <h2>{isSettingsView ? "Settings" : selectedDocumentTitle}</h2>
           </div>
-          <button
-            type="button"
-            onClick={() => selectedCollection && loadDocuments(selectedCollection)}
-            disabled={!selectedCollection || isLoadingDocuments}
-          >
-            Reload
-          </button>
+          {!isSettingsView ? (
+            <button
+              type="button"
+              onClick={() => selectedCollection && loadDocuments(selectedCollection)}
+              disabled={!selectedCollection || isLoadingDocuments}
+            >
+              Reload
+            </button>
+          ) : null}
         </header>
 
         {error ? <div className="error-banner">{error}</div> : null}
 
-        {!isConfigured ? (
+        {showSetupView ? (
           <section className="setup-panel" aria-label="MongoDB data folder setup">
             <div>
               <p className="eyebrow">Setup</p>
               <h2>MongoDB data folder</h2>
-              <p className="muted">Config file: {status?.configPath ?? "inventory.ini"}</p>
+              <p className="muted">Config file: {status?.configPath ?? "conf\\config.json"}</p>
             </div>
 
             <div className="path-row">
@@ -225,7 +285,31 @@ function App() {
           </section>
         ) : null}
 
-        {isConfigured ? (
+        {isSettingsView ? (
+          <section className="setup-panel" aria-label="Settings">
+            <div>
+              <p className="eyebrow">Database</p>
+              <h2>MongoDB data folder</h2>
+              <p className="muted">Config file: {status?.configPath ?? "conf\\config.json"}</p>
+            </div>
+
+            <div className="path-row">
+              <input
+                value={setupPath}
+                onChange={(event) => setSetupPath(event.currentTarget.value)}
+                placeholder="Choose a local folder"
+              />
+              <button type="button" onClick={chooseDataFolder}>
+                Choose
+              </button>
+              <button type="button" onClick={saveDataFolder} disabled={!setupPath || isLoadingStatus}>
+                Save
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {isConfigured && !isSettingsView ? (
           <section className="documents-panel">
             <div className="documents-toolbar">
               <span>
