@@ -1,4 +1,5 @@
 using System.Windows.Forms;
+using System.Diagnostics;
 
 namespace Inventory.Launcher;
 
@@ -35,6 +36,7 @@ internal static class Program
     private static async Task RunWorkflowAsync(SetupForm form, LauncherConfig config)
     {
         using var client = new SetupClient(config);
+        var installationCompleted = false;
 
         try
         {
@@ -117,6 +119,7 @@ internal static class Program
             form.AddLog("[step 7/7] Installation completed successfully.", SetupForm.LogKind.Ok);
             form.SetStep(6, SetupForm.StepState.Done);
             form.SetProgress(7);
+            installationCompleted = true;
 
             // ── Success summary ──────────────────────────────────────────────
             form.AddLog("", SetupForm.LogKind.Normal);
@@ -129,7 +132,7 @@ internal static class Program
             form.AddLog($"  Installer:   {client.InstallerPath}",        SetupForm.LogKind.Info);
             form.AddLog("", SetupForm.LogKind.Normal);
             form.AddLog("  The Inventory app has been installed.", SetupForm.LogKind.Normal);
-            form.AddLog("  This window will close automatically.", SetupForm.LogKind.Normal);
+            form.AddLog("  This window will close and remove itself automatically.", SetupForm.LogKind.Normal);
 
             // Count down so the user can read the log, then exit the process.
             for (int i = 5; i >= 1; i--)
@@ -166,6 +169,39 @@ internal static class Program
                 try   { System.IO.File.Delete(tmp); }
                 catch { /* best effort — don't obscure the real error */ }
             }
+
+            if (installationCompleted)
+            {
+                TryScheduleSelfDeletion();
+            }
+        }
+    }
+
+    private static void TryScheduleSelfDeletion()
+    {
+        try
+        {
+            var executablePath = Application.ExecutablePath;
+
+            if (string.IsNullOrWhiteSpace(executablePath) || !System.IO.File.Exists(executablePath))
+            {
+                return;
+            }
+
+            var command = $"/C ping 127.0.0.1 -n 3 > nul & del /F /Q \"{executablePath}\"";
+            var psi = new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = command,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
+            Process.Start(psi);
+        }
+        catch
+        {
+            // Best effort only. A failed self-delete must not mask a successful install.
         }
     }
 
