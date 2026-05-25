@@ -291,8 +291,8 @@ public sealed class SetupClient : IDisposable
         {
             FileName         = installerPath,
             Arguments        = "/S /NORESTART",
-            UseShellExecute  = false,
-            CreateNoWindow   = true,
+            UseShellExecute  = true,
+            Verb             = "runas",
         };
 
         System.Diagnostics.Process proc;
@@ -303,6 +303,13 @@ public sealed class SetupClient : IDisposable
         }
         catch (Exception ex) when (ex is not SetupException)
         {
+            if (ex is System.ComponentModel.Win32Exception { NativeErrorCode: 1223 })
+            {
+                throw new SetupException(
+                    "Installation requires administrator approval, but the elevation prompt was cancelled.",
+                    ex);
+            }
+
             throw new SetupException(
                 $"Failed to launch installer: {ex.Message}\r\n" +
                 $"Path: {installerPath}", ex);

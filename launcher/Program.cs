@@ -112,6 +112,7 @@ internal static class Program
             form.AddLog("", SetupForm.LogKind.Normal);
             form.AddLog("[step 7/7] Running installer silently (/S /NORESTART)...", SetupForm.LogKind.Info);
             form.AddLog($"           Path: {client.InstallerPath}", SetupForm.LogKind.Normal);
+            form.AddLog("           Administrator approval may be required.", SetupForm.LogKind.Normal);
             await client.SilentInstallAsync(client.InstallerPath!);
             form.AddLog("[step 7/7] Installation completed successfully.", SetupForm.LogKind.Ok);
             form.SetStep(6, SetupForm.StepState.Done);
