@@ -144,7 +144,7 @@ export class BuildService {
       proc.stdout.on('data', (chunk: Buffer) => handleOutput(chunk, false));
       proc.stderr.on('data', (chunk: Buffer) => handleOutput(chunk, true));
 
-      proc.on('close', (code) => {
+      proc.on('close', async (code) => {
         this.isBuildRunning = false;
 
         if (code === 0) {
@@ -163,45 +163,57 @@ export class BuildService {
           } catch (copyErr) {
             const msg = `Build succeeded but the output file could not be stored: ${(copyErr as Error).message}`;
             emit('error', msg);
-            recordPromise.then((record) => {
-              this.buildRecordModel
+            try {
+              const record = await recordPromise;
+              await this.buildRecordModel
                 .findByIdAndUpdate(record._id, {
                   status: BuildStatus.FAILED,
                   completedAt: new Date(),
                 })
-                .exec()
-                .catch(() => void 0);
-            });
+                .exec();
+            } catch {
+              // The stream already contains the user-facing build error.
+            }
             subscriber.complete();
             return;
           }
 
-          // Persist the build result (path is reconstructable; we don't store it).
-          recordPromise.then((record) => {
-            this.buildRecordModel
+          try {
+            // Persist the build result before reporting completion so clients can
+            // download immediately after receiving the complete event.
+            const record = await recordPromise;
+            await this.buildRecordModel
               .findByIdAndUpdate(record._id, {
                 status: BuildStatus.COMPLETED,
                 outputFilename,
                 completedAt: new Date(),
               })
-              .exec()
-              .catch(() => void 0);
-          });
+              .exec();
+          } catch (persistErr) {
+            emit(
+              'error',
+              `Build succeeded but the completed build record could not be saved: ${(persistErr as Error).message}`,
+            );
+            subscriber.complete();
+            return;
+          }
 
           emit(
             'complete',
             `Installer created successfully for machine UUID: ${uuid}. Stored at: ${destPath}`,
           );
         } else {
-          recordPromise.then((record) => {
-            this.buildRecordModel
+          try {
+            const record = await recordPromise;
+            await this.buildRecordModel
               .findByIdAndUpdate(record._id, {
                 status: BuildStatus.FAILED,
                 completedAt: new Date(),
               })
-              .exec()
-              .catch(() => void 0);
-          });
+              .exec();
+          } catch {
+            // The stream still reports the process failure below.
+          }
           emit('error', `Build failed with exit code ${code}`);
         }
 

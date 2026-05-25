@@ -19,6 +19,8 @@ namespace Inventory.Launcher;
 /// </summary>
 public sealed class SetupClient : IDisposable
 {
+    private static readonly TimeSpan ApiRequestTimeout = TimeSpan.FromSeconds(30);
+
     private readonly HttpClient _http;
     private readonly LauncherConfig _config;
     private string? _accessToken;
@@ -39,7 +41,7 @@ public sealed class SetupClient : IDisposable
         _http = new HttpClient(handler)
         {
             BaseAddress = new Uri(config.ApiBaseUrl.TrimEnd('/') + "/"),
-            Timeout     = TimeSpan.FromSeconds(30),
+            Timeout     = Timeout.InfiniteTimeSpan,
         };
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("InventoryMachineSetup/1.0");
     }
@@ -357,13 +359,21 @@ public sealed class SetupClient : IDisposable
         HttpResponseMessage resp;
         try
         {
-            resp = await _http.SendAsync(req, ct);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(ApiRequestTimeout);
+            resp = await _http.SendAsync(req, timeoutCts.Token);
         }
         catch (HttpRequestException ex)
         {
             throw new SetupException(
                 $"Could not reach the server at {_http.BaseAddress}. " +
                 $"Check your internet connection and try again.\r\n\r\nDetails: {ex.Message}",
+                ex);
+        }
+        catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+        {
+            throw new SetupException(
+                $"Request to /{path} timed out after {ApiRequestTimeout.TotalSeconds:0} seconds.",
                 ex);
         }
 
