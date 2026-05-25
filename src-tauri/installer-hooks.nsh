@@ -47,3 +47,9 @@ FunctionEnd
 
 !macro NSIS_HOOK_POSTINSTALL
 !macroend
+
+!macro NSIS_HOOK_POSTUNINSTALL
+  ${If} $UpdateMode <> 1
+    nsExec::ExecToLog 'powershell -NoProfile -NonInteractive -Command "$configDir = Join-Path $env:USERPROFILE ''.inventory''; $configPath = Join-Path $configDir ''config.json''; if (Test-Path $configPath) { try { $config = Get-Content -Raw -Path $configPath | ConvertFrom-Json } catch { $config = $null } if ($config -and $config.dbPath) { $dbPath = [string]$config.dbPath; if (-not [string]::IsNullOrWhiteSpace($dbPath) -and (Test-Path $dbPath)) { Remove-Item -LiteralPath $dbPath -Recurse -Force -ErrorAction SilentlyContinue } } } if (Test-Path $configDir) { Remove-Item -LiteralPath $configDir -Recurse -Force -ErrorAction SilentlyContinue }"'
+  ${EndIf}
+!macroend
