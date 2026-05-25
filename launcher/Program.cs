@@ -128,8 +128,15 @@ internal static class Program
             form.AddLog($"  Installer:   {client.InstallerPath}",        SetupForm.LogKind.Info);
             form.AddLog("", SetupForm.LogKind.Normal);
             form.AddLog("  The Inventory app has been installed.", SetupForm.LogKind.Normal);
-            form.AddLog("  You can close this window.", SetupForm.LogKind.Normal);
-            form.SetStatus("Setup complete. You can close this window.");
+            form.AddLog("  This window will close automatically.", SetupForm.LogKind.Normal);
+
+            // Count down so the user can read the log, then exit the process.
+            for (int i = 5; i >= 1; i--)
+            {
+                form.SetStatus($"Setup complete. Closing in {i} second{(i != 1 ? "s" : "")}...");
+                await Task.Delay(1000);
+            }
+            Application.Exit();
         }
         catch (SetupException sx)
         {
@@ -150,6 +157,14 @@ internal static class Program
         finally
         {
             await client.TryRevokeTokenAsync();
+
+            // Delete the downloaded installer — large temporary file no longer
+            // needed once installation has completed (or failed before install).
+            if (client.InstallerPath is { } tmp && System.IO.File.Exists(tmp))
+            {
+                try   { System.IO.File.Delete(tmp); }
+                catch { /* best effort — don't obscure the real error */ }
+            }
         }
     }
 
