@@ -32,6 +32,7 @@ export type BuildStatus = 'building' | 'completed' | 'failed'
 export interface BuildRecord {
   id: string
   uuid: string
+  machineName: string | null
   status: BuildStatus
   outputFilename: string | null
   createdAt: string | null

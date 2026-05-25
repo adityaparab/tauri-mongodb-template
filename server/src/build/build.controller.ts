@@ -261,17 +261,18 @@ Requires \`Authorization: Bearer <token>\` header.
       req.user.userId,
     );
 
-    if (!record?.outputPath) {
+    if (!record?.outputFilename) {
       throw new NotFoundException(
         `No completed build found for UUID "${uuid}". ` +
           'Please trigger a build via GET /generate/:uuid first and wait for it to complete.',
       );
     }
 
-    res.download(
-      record.outputPath,
-      record.outputFilename ?? `inventory_${uuid}_setup.exe`,
+    const filePath = this.buildService.resolveArtifactPath(
+      req.user.username,
+      record.outputFilename,
     );
+    res.download(filePath, record.outputFilename);
   }
 
   /**
@@ -293,6 +294,6 @@ Requires \`Authorization: Bearer <token>\` header.
     if (!OBJECT_ID_PATTERN.test(id)) {
       throw new BadRequestException('Invalid build record ID format.');
     }
-    await this.buildService.deleteBuild(id, req.user.userId);
+    await this.buildService.deleteBuild(id, req.user.userId, req.user.username);
   }
 }

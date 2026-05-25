@@ -39,3 +39,10 @@ export class SetupToken {
 }
 
 export const SetupTokenSchema = SchemaFactory.createForClass(SetupToken);
+
+// TTL index: MongoDB automatically deletes expired token documents.
+// expireAfterSeconds=0 means the document is removed as soon as expiresAt passes.
+SetupTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+// Allows efficient per-user token lookups (audit, revoke-all-for-user).
+SetupTokenSchema.index({ userId: 1 });

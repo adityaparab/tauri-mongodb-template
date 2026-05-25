@@ -130,6 +130,195 @@ public sealed class SetupClient : IDisposable
     }
 
     // -------------------------------------------------------------------------
+    // Step 5: Stream the build over SSE (GET /generate/:uuid).
+    //
+    // Calls the SSE endpoint and reads each Server-Sent Event line-by-line.
+    // Forwards log / stderr lines to the supplied callbacks, returns on
+    // "complete", and throws SetupException on "error" or if the stream ends
+    // without a terminal event.
+    // -------------------------------------------------------------------------
+    public async Task StreamBuildAsync(
+        string uuid,
+        Action<string> onLog,
+        Action<string> onStderr,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(_accessToken))
+        {
+            throw new InvalidOperationException(
+                "AuthenticateAsync must run before StreamBuildAsync.");
+        }
+
+        var path = $"generate/{Uri.EscapeDataString(uuid)}";
+        using var req = new HttpRequestMessage(HttpMethod.Get, path);
+        req.Headers.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
+        req.Headers.Accept.ParseAdd("text/event-stream");
+
+        HttpResponseMessage resp;
+        try
+        {
+            // ResponseHeadersRead: returns once headers arrive; body is streamed.
+            resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new SetupException(
+                $"Could not reach the server to start the build.\r\nDetails: {ex.Message}", ex);
+        }
+
+        if (!resp.IsSuccessStatusCode)
+        {
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            var msg  = ExtractServerMessage(body) ?? $"HTTP {(int)resp.StatusCode}";
+            throw new SetupException($"Build request to /{path} failed: {msg}");
+        }
+
+        using var stream = await resp.Content.ReadAsStreamAsync(ct);
+        using var reader = new StreamReader(stream);
+
+        // SSE payload: each event is one or more lines; events separated by blank lines.
+        // Our server always emits single-line events of the form:
+        //   data: {"type":"log","message":"..."}
+        string? line;
+        while ((line = await reader.ReadLineAsync(ct)) != null)
+        {
+            if (!line.StartsWith("data:", StringComparison.Ordinal))
+                continue;
+
+            var json = line["data:".Length..].TrimStart();
+            if (string.IsNullOrWhiteSpace(json))
+                continue;
+
+            JsonElement root;
+            try { root = JsonDocument.Parse(json).RootElement; }
+            catch (JsonException) { continue; }
+
+            var type    = root.TryGetProperty("type",    out var tp) ? tp.GetString()        : null;
+            var message = root.TryGetProperty("message", out var mp) ? mp.GetString() ?? "" : "";
+
+            switch (type)
+            {
+                case "complete":
+                    // Build finished — stream will close naturally.
+                    return;
+                case "error":
+                    throw new SetupException("Build failed on the server: " + message);
+                case "stderr":
+                    onStderr(message);
+                    break;
+                default:
+                    onLog(message);
+                    break;
+            }
+        }
+
+        throw new SetupException(
+            "Build stream ended before a completion event was received.\r\n" +
+            "The server may have restarted mid-build. Please try again.");
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 6: Download the compiled installer (GET /download/:uuid).
+    //
+    // Saves the EXE to a temporary file and stores the path in InstallerPath.
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Path where the downloaded installer was saved.  Set after a successful
+    /// call to <see cref="DownloadInstallerAsync"/>.
+    /// </summary>
+    public string? InstallerPath { get; private set; }
+
+    public async Task DownloadInstallerAsync(string uuid, CancellationToken ct = default)
+    {
+        if (string.IsNullOrEmpty(_accessToken))
+        {
+            throw new InvalidOperationException(
+                "AuthenticateAsync must run before DownloadInstallerAsync.");
+        }
+
+        var path = $"download/{Uri.EscapeDataString(uuid)}";
+        using var req = new HttpRequestMessage(HttpMethod.Get, path);
+        req.Headers.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
+
+        HttpResponseMessage resp;
+        try
+        {
+            resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new SetupException(
+                $"Could not download the installer.\r\nDetails: {ex.Message}", ex);
+        }
+
+        if (!resp.IsSuccessStatusCode)
+        {
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            var msg  = ExtractServerMessage(body) ?? $"HTTP {(int)resp.StatusCode}";
+            throw new SetupException($"Installer download from /{path} failed: {msg}");
+        }
+
+        // Derive filename from Content-Disposition; fall back to a safe default.
+        var cd       = resp.Content.Headers.ContentDisposition;
+        var rawName  = cd?.FileNameStar ?? cd?.FileName;
+        var filename = rawName?.Trim('"', '\'') ?? $"inventory_{uuid}.exe";
+
+        var tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), filename);
+
+        using var file    = new System.IO.FileStream(tempPath, System.IO.FileMode.Create,
+                                                      System.IO.FileAccess.Write,
+                                                      System.IO.FileShare.None, 81920);
+        using var content = await resp.Content.ReadAsStreamAsync(ct);
+        await content.CopyToAsync(file, ct);
+
+        InstallerPath = tempPath;
+    }
+
+    // -------------------------------------------------------------------------
+    // Step 7: Silently install the downloaded EXE.
+    //
+    // Passes /S /NORESTART to the NSIS installer.  Waits for the process to
+    // exit and throws SetupException on a non-zero exit code.
+    // -------------------------------------------------------------------------
+    public async Task SilentInstallAsync(string installerPath, CancellationToken ct = default)
+    {
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName         = installerPath,
+            Arguments        = "/S /NORESTART",
+            UseShellExecute  = false,
+            CreateNoWindow   = true,
+        };
+
+        System.Diagnostics.Process proc;
+        try
+        {
+            proc = System.Diagnostics.Process.Start(psi)
+                   ?? throw new SetupException("The installer process could not be started.");
+        }
+        catch (Exception ex) when (ex is not SetupException)
+        {
+            throw new SetupException(
+                $"Failed to launch installer: {ex.Message}\r\n" +
+                $"Path: {installerPath}", ex);
+        }
+
+        using (proc)
+        {
+            await proc.WaitForExitAsync(ct);
+            if (proc.ExitCode != 0)
+            {
+                throw new SetupException(
+                    $"Installer exited with code {proc.ExitCode}.\r\n" +
+                    "Try running it manually: " + installerPath);
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // Best-effort: revoke the setup token so it cannot be re-used.
     // Called from a finally block; never throws to the caller.
     // -------------------------------------------------------------------------

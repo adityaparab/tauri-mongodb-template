@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { BuildController } from './build.controller';
 import { BuildService } from './build.service';
 import { BuildRecord, BuildRecordSchema } from './schemas/build-record.schema';
+import { Machine, MachineSchema } from '../machines/machine.schema';
 import { AuthModule } from '../auth/auth.module';
 
 /**
@@ -19,6 +20,7 @@ import { AuthModule } from '../auth/auth.module';
   imports: [
     MongooseModule.forFeature([
       { name: BuildRecord.name, schema: BuildRecordSchema },
+      { name: Machine.name, schema: MachineSchema },
     ]),
     AuthModule,
   ],

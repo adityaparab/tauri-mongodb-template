@@ -21,7 +21,7 @@ export default function BuildTable({ records, downloadingUuid, deletingId, onDow
       <Table stickyHeader size="small" aria-label="Submitted UUID builds">
         <TableHead>
           <TableRow>
-            <TableCell>UUID</TableCell>
+            <TableCell>Machine</TableCell>
             <TableCell>Status</TableCell>
             <TableCell>Submitted</TableCell>
             <TableCell>Completed</TableCell>

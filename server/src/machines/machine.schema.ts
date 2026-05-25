@@ -21,7 +21,7 @@ export class Machine {
   name: string;
 
   /** Owner of this registration entry. */
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId;
 
   createdAt?: Date;
@@ -29,5 +29,6 @@ export class Machine {
 
 export const MachineSchema = SchemaFactory.createForClass(Machine);
 
-// Fast lookup by owner + UUID (upsert pattern in MachinesService).
-MachineSchema.index({ userId: 1, uuid: 1 });
+// Unique compound index enforces the upsert contract at the DB level and
+// covers all { userId } queries, so no separate userId index is needed.
+MachineSchema.index({ userId: 1, uuid: 1 }, { unique: true });

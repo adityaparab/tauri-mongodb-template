@@ -15,10 +15,12 @@ import {
   BuildRecordDocument,
   BuildStatus,
 } from './schemas/build-record.schema';
+import { Machine, MachineDocument } from '../machines/machine.schema';
 
 export interface BuildRecordSummary {
   id: string;
   uuid: string;
+  machineName: string | null;
   status: BuildStatus;
   outputFilename: string | null;
   createdAt: Date | null;
@@ -64,6 +66,8 @@ export class BuildService {
   constructor(
     @InjectModel(BuildRecord.name)
     private readonly buildRecordModel: Model<BuildRecordDocument>,
+    @InjectModel(Machine.name)
+    private readonly machineModel: Model<MachineDocument>,
     config: ConfigService,
   ) {
     this.buildOutputBase =
@@ -172,12 +176,11 @@ export class BuildService {
             return;
           }
 
-          // Persist the output path so the download endpoint can locate the file.
+          // Persist the build result (path is reconstructable; we don't store it).
           recordPromise.then((record) => {
             this.buildRecordModel
               .findByIdAndUpdate(record._id, {
                 status: BuildStatus.COMPLETED,
-                outputPath: destPath,
                 outputFilename,
                 completedAt: new Date(),
               })
@@ -261,9 +264,19 @@ export class BuildService {
       .lean()
       .exec();
 
+    // Batch-load machine names for all unique UUIDs in one query.
+    const uuids = [...new Set(records.map((r) => r.uuid))];
+    const machines = await this.machineModel
+      .find({ userId: new Types.ObjectId(userId), uuid: { $in: uuids } })
+      .select('uuid name')
+      .lean()
+      .exec();
+    const machineNameByUuid = new Map(machines.map((m) => [m.uuid, m.name]));
+
     return records.map((record) => ({
       id: record._id.toString(),
       uuid: record.uuid,
+      machineName: machineNameByUuid.get(record.uuid) ?? null,
       status: record.status,
       outputFilename: record.outputFilename,
       createdAt: record.createdAt ?? null,
@@ -317,10 +330,19 @@ export class BuildService {
   }
 
   /**
+   * Reconstructs the absolute path of a stored build artifact.
+   * The path is deterministic: `<buildOutputBase>/<username>/<outputFilename>`.
+   * This avoids persisting absolute container paths in the database.
+   */
+  resolveArtifactPath(username: string, outputFilename: string): string {
+    return path.join(this.buildOutputBase, username, outputFilename);
+  }
+
+  /**
    * Deletes a build record and its associated artifact file from the file system.
    * Ownership is enforced — the record must belong to the requesting user.
    */
-  async deleteBuild(id: string, userId: string): Promise<void> {
+  async deleteBuild(id: string, userId: string, username: string): Promise<void> {
     const record = await this.buildRecordModel
       .findOne({
         _id: new Types.ObjectId(id),
@@ -334,10 +356,11 @@ export class BuildService {
       );
     }
 
-    if (record.outputPath) {
+    if (record.outputFilename) {
       try {
-        if (fs.existsSync(record.outputPath)) {
-          fs.unlinkSync(record.outputPath);
+        const filePath = this.resolveArtifactPath(username, record.outputFilename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
         }
       } catch {
         // Proceed with deleting the database record even if file removal fails.

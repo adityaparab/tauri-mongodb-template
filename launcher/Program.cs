@@ -38,64 +38,104 @@ internal static class Program
 
         try
         {
-            // 1. Authenticate
+            // ── Step 1: Authenticate ──────────────────────────────────────────
             form.SetStep(0, SetupForm.StepState.Running);
             form.SetStatus("Authenticating...");
-            form.AddLog("-> Exchanging setup credentials with server...", SetupForm.LogKind.Info);
+            form.AddLog("[step 1/7] Exchanging setup credentials with server...", SetupForm.LogKind.Info);
+            form.AddLog($"           Server: {config.ApiBaseUrl}", SetupForm.LogKind.Normal);
             await client.AuthenticateAsync();
-            form.AddLog("   Authenticated successfully.", SetupForm.LogKind.Ok);
+            form.AddLog("[step 1/7] Authenticated successfully.", SetupForm.LogKind.Ok);
             form.SetStep(0, SetupForm.StepState.Done);
             form.SetProgress(1);
 
-            // 2. Detect UUID
+            // ── Step 2: Detect UUID ──────────────────────────────────────────
             form.SetStep(1, SetupForm.StepState.Running);
             form.SetStatus("Detecting machine UUID...");
-            form.AddLog("-> Reading hardware UUID from WMI...", SetupForm.LogKind.Info);
+            form.AddLog("", SetupForm.LogKind.Normal);
+            form.AddLog("[step 2/7] Reading hardware UUID from WMI...", SetupForm.LogKind.Info);
             await client.DetectUuidAsync();
-            form.AddLog($"   UUID: {client.MachineUuid}", SetupForm.LogKind.Ok);
+            form.AddLog($"[step 2/7] UUID detected: {client.MachineUuid}", SetupForm.LogKind.Ok);
             form.SetStep(1, SetupForm.StepState.Done);
             form.SetProgress(2);
 
-            // 3. Detect hostname
+            // ── Step 3: Detect hostname ───────────────────────────────────────
             form.SetStep(2, SetupForm.StepState.Running);
             form.SetStatus("Detecting hostname...");
-            form.AddLog("-> Reading computer name...", SetupForm.LogKind.Info);
+            form.AddLog("", SetupForm.LogKind.Normal);
+            form.AddLog("[step 3/7] Reading computer name...", SetupForm.LogKind.Info);
             await client.DetectHostnameAsync();
-            form.AddLog($"   Hostname: {client.Hostname}", SetupForm.LogKind.Ok);
+            form.AddLog($"[step 3/7] Hostname: {client.Hostname}", SetupForm.LogKind.Ok);
             form.SetStep(2, SetupForm.StepState.Done);
             form.SetProgress(3);
 
-            // 4. Register
+            // ── Step 4: Register machine ─────────────────────────────────────
             form.SetStep(3, SetupForm.StepState.Running);
             form.SetStatus("Registering machine...");
-            form.AddLog("-> Registering machine with server...", SetupForm.LogKind.Info);
+            form.AddLog("", SetupForm.LogKind.Normal);
+            form.AddLog("[step 4/7] Registering machine with server...", SetupForm.LogKind.Info);
+            form.AddLog($"           UUID: {client.MachineUuid}", SetupForm.LogKind.Normal);
+            form.AddLog($"           Name: {client.MachineName}", SetupForm.LogKind.Normal);
             await client.RegisterMachineAsync();
-            form.AddLog($"   Machine registered: {client.MachineName}", SetupForm.LogKind.Ok);
+            form.AddLog($"[step 4/7] Machine registered: {client.MachineName}", SetupForm.LogKind.Ok);
             form.SetStep(3, SetupForm.StepState.Done);
             form.SetProgress(4);
 
-            // Success summary
+            // ── Step 5: Trigger build via SSE ────────────────────────────────
+            form.SetStep(4, SetupForm.StepState.Running);
+            form.SetStatus("Building installer (this may take a few minutes)...");
+            form.AddLog("", SetupForm.LogKind.Normal);
+            form.AddLog("[step 5/7] Triggering build on the server...", SetupForm.LogKind.Info);
+            form.AddLog($"           UUID: {client.MachineUuid}", SetupForm.LogKind.Normal);
+
+            await client.StreamBuildAsync(
+                client.MachineUuid!,
+                onLog:    msg => form.AddLog("  build> " + msg, SetupForm.LogKind.Normal),
+                onStderr: msg => form.AddLog("  build! " + msg, SetupForm.LogKind.Warn));
+
+            form.AddLog("[step 5/7] Build completed successfully.", SetupForm.LogKind.Ok);
+            form.SetStep(4, SetupForm.StepState.Done);
+            form.SetProgress(5);
+
+            // ── Step 6: Download installer ───────────────────────────────────
+            form.SetStep(5, SetupForm.StepState.Running);
+            form.SetStatus("Downloading installer...");
+            form.AddLog("", SetupForm.LogKind.Normal);
+            form.AddLog("[step 6/7] Downloading compiled installer from server...", SetupForm.LogKind.Info);
+            await client.DownloadInstallerAsync(client.MachineUuid!);
+            form.AddLog($"[step 6/7] Installer saved to: {client.InstallerPath}", SetupForm.LogKind.Ok);
+            form.SetStep(5, SetupForm.StepState.Done);
+            form.SetProgress(6);
+
+            // ── Step 7: Silent install ───────────────────────────────────────
+            form.SetStep(6, SetupForm.StepState.Running);
+            form.SetStatus("Installing...");
+            form.AddLog("", SetupForm.LogKind.Normal);
+            form.AddLog("[step 7/7] Running installer silently (/S /NORESTART)...", SetupForm.LogKind.Info);
+            form.AddLog($"           Path: {client.InstallerPath}", SetupForm.LogKind.Normal);
+            await client.SilentInstallAsync(client.InstallerPath!);
+            form.AddLog("[step 7/7] Installation completed successfully.", SetupForm.LogKind.Ok);
+            form.SetStep(6, SetupForm.StepState.Done);
+            form.SetProgress(7);
+
+            // ── Success summary ──────────────────────────────────────────────
             form.AddLog("", SetupForm.LogKind.Normal);
             form.AddLog("==============================================", SetupForm.LogKind.Ok);
-            form.AddLog("  Machine registered successfully!",            SetupForm.LogKind.Ok);
+            form.AddLog("  Setup complete!",                             SetupForm.LogKind.Ok);
             form.AddLog("==============================================", SetupForm.LogKind.Ok);
             form.AddLog("", SetupForm.LogKind.Normal);
-            form.AddLog($"  UUID:     {client.MachineUuid}", SetupForm.LogKind.Info);
-            form.AddLog($"  Machine:  {client.MachineName}", SetupForm.LogKind.Info);
+            form.AddLog($"  UUID:        {client.MachineUuid}",          SetupForm.LogKind.Info);
+            form.AddLog($"  Machine:     {client.MachineName}",          SetupForm.LogKind.Info);
+            form.AddLog($"  Installer:   {client.InstallerPath}",        SetupForm.LogKind.Info);
             form.AddLog("", SetupForm.LogKind.Normal);
-            form.AddLog("  Next step:");
-            form.AddLog("  Go to the dashboard in your browser and");
-            form.AddLog("  download the installer for this machine:");
-            form.AddLog("");
-            form.AddLog($"  {config.ApiBaseUrl}", SetupForm.LogKind.Info);
-            form.AddLog("");
-            form.SetStatus("Registration complete. Visit the dashboard to download your installer.");
+            form.AddLog("  The Inventory app has been installed.", SetupForm.LogKind.Normal);
+            form.AddLog("  You can close this window.", SetupForm.LogKind.Normal);
+            form.SetStatus("Setup complete. You can close this window.");
         }
         catch (SetupException sx)
         {
             MarkFailed(form);
             form.AddLog("", SetupForm.LogKind.Normal);
-            form.AddLog("Setup failed: " + sx.Message, SetupForm.LogKind.Err);
+            form.AddLog("ERROR: " + sx.Message, SetupForm.LogKind.Err);
             form.SetStatus("Setup failed. Review the log above, then close this window.");
         }
         catch (Exception ex)
@@ -103,6 +143,8 @@ internal static class Program
             MarkFailed(form);
             form.AddLog("", SetupForm.LogKind.Normal);
             form.AddLog("Unexpected error: " + ex.Message, SetupForm.LogKind.Err);
+            form.AddLog("Stack trace:", SetupForm.LogKind.Err);
+            form.AddLog(ex.StackTrace ?? "(no stack trace)", SetupForm.LogKind.Err);
             form.SetStatus("Setup failed. Review the log above, then close this window.");
         }
         finally

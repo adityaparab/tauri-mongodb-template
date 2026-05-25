@@ -40,6 +40,9 @@ public sealed class SetupForm : Form
         "Detect Machine UUID",
         "Detect Hostname",
         "Register Machine",
+        "Trigger Build",
+        "Download Installer",
+        "Install",
     };
 
     // -- Glyphs ---------------------------------------------------------------
@@ -96,7 +99,7 @@ public sealed class SetupForm : Form
         {
             Location = new Point(16, 8),
             Size     = new Size(788, 12),
-            Minimum  = 0, Maximum = 4, Value = 0,
+            Minimum  = 0, Maximum = 7, Value = 0,
             Style    = ProgressBarStyle.Continuous,
         };
         bottom.Controls.Add(_progress);

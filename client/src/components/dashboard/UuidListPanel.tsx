@@ -16,6 +16,7 @@ import EmptyBuildsState from './EmptyBuildsState'
 
 export interface UuidEntry {
   uuid: string
+  machineName: string | null
   latestStatus: BuildStatus
   buildCount: number
   lastActivity: string | null
@@ -80,15 +81,26 @@ export default function UuidListPanel({
             >
               <Typography
                 variant="body2"
-                sx={{
-                  fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace',
-                  wordBreak: 'break-all',
-                  fontSize: '0.75rem',
-                  mb: 0.75,
-                }}
+                fontWeight={500}
+                noWrap
+                sx={{ mb: entry.machineName ? 0.25 : 0 }}
               >
-                {entry.uuid}
+                {entry.machineName ?? entry.uuid}
               </Typography>
+              {entry.machineName && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{
+                    fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace',
+                    wordBreak: 'break-all',
+                    fontSize: '0.68rem',
+                    mb: 0.75,
+                  }}
+                >
+                  {entry.uuid}
+                </Typography>
+              )}
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                 <BuildStatusChip status={entry.latestStatus} />
                 <Typography variant="caption" color="text.secondary">

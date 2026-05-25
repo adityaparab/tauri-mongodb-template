@@ -73,6 +73,7 @@ export default function DashboardScreen({ session, onLogout }: DashboardScreenPr
         })
         return {
           uuid,
+          machineName: sorted[0].machineName ?? null,
           latestStatus: sorted[0].status,
           buildCount: builds.length,
           lastActivity: sorted[0].createdAt,

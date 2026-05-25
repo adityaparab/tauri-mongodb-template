@@ -18,9 +18,15 @@ export default function BuildTableRow({ record, isDownloading, isDeleting, onDow
   return (
     <TableRow hover>
       <TableCell sx={{ minWidth: 270 }}>
+        {record.machineName && (
+          <Typography variant="body2" fontWeight={500} noWrap sx={{ mb: 0.25 }}>
+            {record.machineName}
+          </Typography>
+        )}
         <Typography
-          variant="body2"
-          sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', wordBreak: 'break-all' }}
+          variant="caption"
+          color="text.secondary"
+          sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', wordBreak: 'break-all', display: 'block' }}
         >
           {record.uuid}
         </Typography>
