@@ -82,8 +82,7 @@ public sealed class SetupForm : Form
         });
         header.Controls.Add(new Label
         {
-            Text = "Registers this machine with the Inventory system. " +
-                   "Once complete, visit the dashboard to download your installer.",
+            Text = "Registers this machine, builds its installer, and installs Inventory.",
             Font = F_SUB, ForeColor = C_DIM,
             AutoSize = true, Location = new Point(20, 36),
         });

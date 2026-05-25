@@ -57,12 +57,31 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
  && npm install -g yarn \
  && rm -rf /var/lib/apt/lists/*
 
-# ── 3. Machine-setup launcher EXE (pre-built on Windows in CI) ───────────────
+# ── 3. Rust + Windows cross-compilation target ───────────────────────────────
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+    | sh -s -- -y --no-modify-path --default-toolchain stable \
+ && rustup target add x86_64-pc-windows-gnu
+
+# ── 4. Initialise Wine prefix ─────────────────────────────────────────────────
+# Tauri runs NSIS (a Windows .exe) through Wine to create the installer.
+# We initialise the Wine prefix now so the first build request is not delayed.
+RUN Xvfb :99 -screen 0 1024x768x24 & \
+    export DISPLAY=:99 && \
+    wineboot --init 2>/dev/null || true
+
+# ── 5. Copy project + install JS dependencies ────────────────────────────────
+WORKDIR /app
+COPY . .
+
+# ── 5a. Machine-setup launcher EXE (pre-built on Windows in CI) ──────────────
 # The launcher is a small .NET 8 self-contained WinForms app built on a
 # Windows GitHub Actions runner (.github/workflows/build-launcher.yml) and
 # attached to the floating `launcher-latest` GitHub release.  At runtime the
 # Nest server appends a per-user configuration footer to this binary and
 # streams it as the response to GET /setup/download.
+#
+# Keep this download after COPY so a new app deployment does not reuse a stale
+# Docker layer containing an older launcher binary.
 #
 # Building a Windows EXE from a Linux container was attempted with both
 # ps2exe and ps12exe; ps2exe shells out to powershell.exe (Windows only) and
@@ -71,37 +90,21 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 # on Windows sidesteps all of this.
 ARG LAUNCHER_RELEASE_TAG=launcher-latest
 ARG LAUNCHER_REPO=adityaparab/tauri-mongodb-template
-RUN mkdir -p /app \
- && curl -fsSL --retry 3 \
-      "https://github.com/${LAUNCHER_REPO}/releases/download/${LAUNCHER_RELEASE_TAG}/machine-setup.exe" \
-      -o /app/setup-launcher.exe \
+RUN curl -fsSL --retry 3 \
+    "https://github.com/${LAUNCHER_REPO}/releases/download/${LAUNCHER_RELEASE_TAG}/machine-setup.exe" \
+    -o /app/setup-launcher.exe \
  && ls -la /app/setup-launcher.exe
 
-# ── 4. Rust + Windows cross-compilation target ────────────────────────────────
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-    | sh -s -- -y --no-modify-path --default-toolchain stable \
- && rustup target add x86_64-pc-windows-gnu
-
-# ── 5. Initialise Wine prefix ─────────────────────────────────────────────────
-# Tauri runs NSIS (a Windows .exe) through Wine to create the installer.
-# We initialise the Wine prefix now so the first build request is not delayed.
-RUN Xvfb :99 -screen 0 1024x768x24 & \
-    export DISPLAY=:99 && \
-    wineboot --init 2>/dev/null || true
-
-# ── 6. Copy project + install JS dependencies ────────────────────────────────
-WORKDIR /app
-COPY . .
 RUN yarn install --frozen-lockfile
 
-# ── 6a. Build the React admin UI served by Nest at runtime ───────────────────
+# ── 5b. Build the React admin UI served by Nest at runtime ───────────────────
 WORKDIR /app/client
 RUN yarn install --frozen-lockfile
 RUN yarn build
 
 WORKDIR /app
 
-# ── 7. Pre-warm the Rust / Tauri build cache ─────────────────────────────────
+# ── 6. Pre-warm the Rust / Tauri build cache ─────────────────────────────────
 # Running a full build here compiles all Rust crates and bundles the frontend.
 # Subsequent /generate/:uuid requests hit the incremental Cargo cache and only
 # re-run the fast NSIS packaging step (seconds, not minutes).
@@ -110,12 +113,12 @@ RUN DISPLAY=:99 Xvfb :99 -screen 0 1024x768x24 & \
     sleep 2 && \
     yarn tauri build --target x86_64-pc-windows-gnu --bundles nsis || true
 
-# ── 8. Build the NestJS service ───────────────────────────────────────────────
+# ── 7. Build the NestJS service ───────────────────────────────────────────────
 WORKDIR /app/server
 RUN yarn install --frozen-lockfile
 RUN yarn build
 
-# ── 9. Runtime ────────────────────────────────────────────────────────────────
+# ── 8. Runtime ────────────────────────────────────────────────────────────────
 # Start Xvfb (needed by Wine at runtime) then launch the NestJS server.
 EXPOSE 3000
 CMD ["sh", "-c", "Xvfb :99 -screen 0 1024x768x24 & export DISPLAY=:99 && node /app/server/dist/main.js"]

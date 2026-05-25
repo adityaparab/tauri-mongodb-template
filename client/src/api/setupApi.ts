@@ -2,9 +2,9 @@ import type { DownloadedArtifact } from '../types'
 import { apiUrl, createApiError } from './http'
 
 /**
- * Downloads the personalised machine setup script (.ps1) for the
- * authenticated user. The returned script embeds a single-use token and
- * the server URL so the end-user just runs it without any manual config.
+ * Downloads the personalised machine setup executable for the authenticated
+ * user. The returned EXE embeds a single-use token and the server URL so the
+ * end-user just runs it without any manual config.
  */
 export async function downloadSetupScript(token: string): Promise<DownloadedArtifact> {
   const response = await fetch(apiUrl('/setup/download'), {

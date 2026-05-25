@@ -54,7 +54,7 @@ export default function DashboardHeader({
         </Box>
         {showSetupButton && (
           <Tooltip
-            title="Downloads a personalised setup program. Run it on the target machine to register it with the dashboard."
+            title="Downloads a personalised setup program. Run it on the target machine to register, build, and install Inventory."
             arrow
           >
             <span>

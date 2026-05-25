@@ -18,7 +18,12 @@ When run on the target Windows machine, the launcher:
 3. Detects the machine's hardware UUID via WMI (`Win32_ComputerSystemProduct`).
 4. Detects the hostname (`Environment.MachineName`).
 5. Registers the machine (`POST /machines`).
-6. Revokes the setup token in a `finally` block (`POST /setup/revoke`).
+6. Starts the machine-specific installer build (`GET /generate/:uuid`) and
+  streams the SSE build log in the launcher window.
+7. Downloads the completed installer (`GET /download/:uuid`).
+8. Runs the downloaded installer silently.
+9. Deletes the downloaded installer and revokes the setup token in a `finally`
+  block (`POST /setup/revoke`).
 
 The UI is a dark-themed WinForms window with a step sidebar, log panel and
 progress bar, mirroring the previous PowerShell UI.

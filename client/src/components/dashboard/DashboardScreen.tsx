@@ -166,7 +166,7 @@ export default function DashboardScreen({ session, onLogout }: DashboardScreenPr
       setNotice({
         severity: 'success',
         message:
-          'install-generator.exe downloaded. Run it on the target machine to register it with the dashboard.',
+          'install-generator.exe downloaded. Run it on the target machine to register, build, and install Inventory.',
       })
     } catch (requestError) {
       setNotice({ severity: 'error', message: getErrorMessage(requestError) })

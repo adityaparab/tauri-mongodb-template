@@ -53,10 +53,10 @@ export class SetupController {
    *   2. Exchange the token for a short-lived JWT.
    *   3. Detect the machine UUID (via WMI) and hostname.
    *   4. Register the machine with the server.
-   *   5. Revoke the setup token in a `finally` block.
-   *
-   * After registration the user is prompted in the UI to return to the
-   * dashboard and download the per-machine installer.
+  *   5. Trigger the machine-specific installer build and stream build events.
+  *   6. Download the completed installer.
+  *   7. Run the installer silently.
+  *   8. Revoke the setup token in a `finally` block and delete the downloaded installer.
    */
   @UseGuards(JwtAuthGuard)
   @Get('download')
